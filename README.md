@@ -63,9 +63,9 @@ immersed grid) and #180 (CUDA graphs for EVP).
 ## Running
 
 ```bash
-# One-time: credentials
-#   ~/.cdsapirc                   ERA5 (CDS personal access token; accept the ERA5 single-levels licence)
-#   ~/.copernicusmarine.env       export COPERNICUSMARINE_SERVICE_USERNAME=... / _PASSWORD=...
+# One-time: export credentials in ~/.bashrc (slurm/env.sh sources it)
+#   COPERNICUSMARINE_SERVICE_USERNAME, COPERNICUSMARINE_SERVICE_PASSWORD     GLORYS
+#   CDSAPI_URL=https://cds.climate.copernicus.eu/api, CDSAPI_KEY=<token>    ERA5 (accept the single-levels licence)
 sbatch slurm/precompile.sbatch
 
 source slurm/env.sh && julia --project download_data.jl 60   # login node: bathymetry + forcing for 60 days

@@ -1,4 +1,6 @@
 # Shared environment for GlobalKiloMischief jobs on DeltaAI (source this file).
+# ~/.bashrc carries the data credentials: COPERNICUSMARINE_SERVICE_USERNAME/_PASSWORD (GLORYS), CDSAPI_URL/_KEY (ERA5).
+source "$HOME/.bashrc" > /dev/null 2>&1
 export PATH=/u/glwagner/opt/julia-1.12.7/bin:$PATH
 # Let CUDA.jl use its own runtime artifacts rather than the HPC SDK libraries on LD_LIBRARY_PATH.
 unset LD_LIBRARY_PATH
@@ -9,8 +11,6 @@ export JULIA_PKG_PRECOMPILE_AUTO=0
 # Downloaded and cached datasets (ERA5, GLORYS, JRA55, ETOPO) live on /work, not in the home quota.
 export NUMERICALEARTH_DATA_DIRECTORY=/work/hdd/bhcr/glwagner/numericalearth_data
 export RUN_DIRECTORY=${RUN_DIRECTORY:-/work/hdd/bhcr/glwagner/GlobalKiloMischief}
-# Copernicus Marine credentials (COPERNICUSMARINE_SERVICE_USERNAME / _PASSWORD) for GLORYS.
-[ -f "$HOME/.copernicusmarine.env" ] && source "$HOME/.copernicusmarine.env"
 cd /u/glwagner/GlobalKiloMischief
 mkdir -p logs "$RUN_DIRECTORY" "$NUMERICALEARTH_DATA_DIRECTORY"
 echo "host: $(hostname)  job: ${SLURM_JOB_ID:-none}  start: $(date)"
