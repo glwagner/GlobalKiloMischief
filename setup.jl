@@ -5,6 +5,7 @@ using NumericalEarth
 using Oceananigans
 using Oceananigans.Units
 using Oceananigans.Advection: cell_advection_timescale
+using Oceananigans.BoundaryConditions: fill_halo_regions!
 using Oceananigans.DistributedComputations: @root
 using Oceananigans.Fields: ZeroField
 using ClimaSeaIce.Rheologies: ElastoViscoPlasticRheology
@@ -18,10 +19,34 @@ const start_date = DateTime(2015, 1, 1)
 const run_directory = get(ENV, "RUN_DIRECTORY", ".")
 
 """
+    global_bottom_height(Nx, Ny; halo, gibraltar_sill_depth = 280)
+
+ETOPO2022 bottom height on the whole `Nx × Ny` tripolar grid, computed on the CPU. The grid row nearest 35.95ᵒN is
+carved to `gibraltar_sill_depth` between 5.6ᵒW and 5.0ᵒW before minor basins are removed, because at 1/6ᵒ a single
+land cell closes the Strait of Gibraltar and the Mediterranean would be discarded. Every rank of a distributed run
+builds the same field, so the regridding must already be cached (`download_data.jl` does this).
+"""
+function global_bottom_height(Nx, Ny; halo, gibraltar_sill_depth = 280)
+    grid = TripolarGrid(CPU(); size = (Nx, Ny, 1), halo, z = (-6000, 0))
+    bottom_height = regrid_bathymetry(grid; minimum_depth = 10, interpolation_passes = 3, major_basins = Inf)
+
+    λ = mod.(λnodes(grid, Center(), Center(), Center()) .+ 180, 360) .- 180
+    φ = φnodes(grid, Center(), Center(), Center())
+    Δφ = 170 / Ny
+    strait = @. (-5.6 ≤ λ ≤ -5.0) & (abs(φ - 35.95) ≤ Δφ / 2)
+    z = view(interior(bottom_height), :, :, 1)
+    z[strait] .= min.(z[strait], -gibraltar_sill_depth)
+
+    NumericalEarth.Bathymetry.remove_minor_basins!(bottom_height, 1)
+
+    return bottom_height
+end
+
+"""
     global_grid(arch; cells_per_degree, Nz = 100, depth = 6000)
 
 Tripolar grid from 80°S to the north pole at `1/cells_per_degree` degree resolution, with `Nz` z⋆ levels
-(1.4 m at the surface, 320 m at 6000 m depth) and ETOPO2022 bathymetry.
+(1.4 m at the surface, 320 m at 6000 m depth) and ETOPO2022 bathymetry (see [`global_bottom_height`](@ref)).
 """
 function global_grid(arch; cells_per_degree, Nz = 100, depth = 6000, halo = (5, 5, 4))
     Nx = 360 * cells_per_degree
@@ -29,8 +54,10 @@ function global_grid(arch; cells_per_degree, Nz = 100, depth = 6000, halo = (5, 
     z = ExponentialDiscretization(Nz, -depth, 0; scale = 1100, mutable = true)
     underlying_grid = TripolarGrid(arch; size = (Nx, Ny, Nz), halo, z)
 
-    # Two basins keeps the Mediterranean even if the Strait of Gibraltar is closed at this resolution.
-    bottom_height = regrid_bathymetry(underlying_grid; minimum_depth = 10, interpolation_passes = 3, major_basins = 2)
+    # `set!` partitions a global host array across the ranks of a distributed grid.
+    bottom_height = Field{Center, Center, Nothing}(underlying_grid)
+    set!(bottom_height, Array(interior(global_bottom_height(Nx, Ny; halo))))
+    fill_halo_regions!(bottom_height)
 
     return ImmersedBoundaryGrid(underlying_grid, GridFittedBottom(bottom_height); active_cells_map = true)
 end

@@ -1,7 +1,9 @@
-# GlobalOceanSeaIce
+# GlobalKilometerScaleOceananigans
 
-Eddying global ocean–sea ice simulations with [NumericalEarth.jl](https://github.com/NumericalEarth/NumericalEarth.jl)
-on a `TripolarGrid`. Runs on NCSA DeltaAI (GH200).
+Global, kilometer-scale ocean–sea ice simulations with [Oceananigans.jl](https://github.com/CliMA/Oceananigans.jl)
+and [NumericalEarth.jl](https://github.com/NumericalEarth/NumericalEarth.jl), aiming to reproduce the MITgcm LLC4320
+simulation (1/48°, 90 levels, tides) on a `TripolarGrid`. We start at 1/6° on one GPU and 1/12° on four GPUs, then
+refine. Runs on NCSA DeltaAI (GH200).
 
 | Script | Configuration |
 |---|---|
@@ -14,7 +16,10 @@ on a `TripolarGrid`. Runs on NCSA DeltaAI (GH200).
 ## Configuration
 
 - **Grid**: `TripolarGrid` from 80°S, 100 z⋆ levels (1.4 m at the surface, 320 m at 6000 m), ETOPO2022 bathymetry
-  (`GridFittedBottom`, active cells map).
+  (`GridFittedBottom`, active cells map). The bathymetry is built on the CPU for the whole grid and partitioned across
+  ranks. The Strait of Gibraltar is carved to the 280 m Camarinal Sill along the row nearest 35.95°N, because a
+  single land cell closes it at 1/6° and the Mediterranean would otherwise be discarded (at 1/12° it is already open).
+  Only the connected world ocean is kept, so the Black and Caspian Seas are land.
 - **Ocean**: `ocean_simulation` defaults only: `WENOVectorInvariant` momentum, `WENO(order=7)` tracers (both
   vertically implicit where the vertical CFL exceeds 0.5), `CATKEVerticalDiffusivity`, `SplitRungeKutta3`,
   `SplitExplicitFreeSurface` with a substep count sized for `max_Δt`. No GM, no horizontal viscosity.
@@ -32,8 +37,12 @@ on a `TripolarGrid`. Runs on NCSA DeltaAI (GH200).
 
 ## Pinned versions
 
-`Project.toml` pins NumericalEarth `d07eb24` and Oceananigans `main` at `ac83d85` (still 0.113.5). The `main` pin
-picks up changes that have not been released yet:
+Julia ≥ 1.12.3 is required: earlier versions assume 4 KiB pages on aarch64, and JLD2's memory-mapped writes then
+fail on DeltaAI's 64 KiB pages (`SystemError("msync", 22)`, JLD2 #702).
+
+`Project.toml` pins NumericalEarth at `3e6fe65` (NumericalEarth #739, which windows the ERA5 specific humidity
+like the other ERA5 fields) and Oceananigans `main` at `ac83d85` (still 0.113.5). The `main` pin picks up changes
+that have not been released yet:
 
 - #6154: the serial tripolar fold no longer needs extended halos.
 - #5897 and #6081: fewer host–device syncs and allocations in distributed halo exchange.
@@ -53,7 +62,7 @@ immersed grid) and #180 (CUDA graphs for EVP).
 #   ~/.copernicusmarine.env       export COPERNICUSMARINE_SERVICE_USERNAME=... / _PASSWORD=...
 sbatch slurm/precompile.sbatch
 
-source slurm/env.sh && julia --project download_data.jl 60   # login node: forcing for 60 days
+source slurm/env.sh && julia --project download_data.jl 60   # login node: bathymetry + forcing for 60 days
 sbatch slurm/smoke_test.sbatch
 sbatch slurm/sixth_degree.sbatch 10                          # then 30, 90, ... (each picks up)
 sbatch slurm/twelfth_degree.sbatch 10
@@ -61,7 +70,6 @@ sbatch slurm/twelfth_degree.sbatch 10
 
 ## Known limitations
 
-- `ERA5PrescribedAtmosphere` keeps the derived specific humidity in memory for the whole forcing window
-  (about 100 MB per simulated day on each GPU). Runs longer than a few months need NumericalEarth to derive
-  humidity from dewpoint at load time, so that it is windowed like the other ERA5 fields.
 - JRA55-do runoff ends on 2019-12-31, which caps hindcasts started in 2015 at five years.
+- No tides yet. They are planned once the runs are stable, as an equilibrium tidal potential through the
+  pluggable barotropic potential of NumericalEarth #736.
