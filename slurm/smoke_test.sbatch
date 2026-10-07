@@ -2,7 +2,7 @@
 #SBATCH --job-name=gkm-smoke_test
 #SBATCH --output=logs/smoke_test-%j.log
 #SBATCH --account=bhcr-dtai-gh
-#SBATCH --partition=ghx4
+#SBATCH --partition=ghx4-interactive
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16

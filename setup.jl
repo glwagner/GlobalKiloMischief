@@ -4,6 +4,7 @@
 using NumericalEarth
 using Oceananigans
 using Oceananigans.Units
+using Oceananigans.Architectures: architecture
 using Oceananigans.Advection: cell_advection_timescale
 using Oceananigans.BoundaryConditions: fill_halo_regions!
 using Oceananigans.DistributedComputations: @root
