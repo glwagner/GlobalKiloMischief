@@ -5,6 +5,7 @@
 #   julia --project download_data.jl [days=30]
 
 using CDSAPI, CopernicusMarine
+using Downloads: download
 include("setup.jl")
 
 end_date = start_date + Day(parse(Int, get(ARGS, 1, "30")) + 1)

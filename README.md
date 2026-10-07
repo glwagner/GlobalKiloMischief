@@ -1,4 +1,4 @@
-# GlobalKilometerScaleOceananigans
+# GlobalKiloMischief
 
 Global, kilometer-scale ocean–sea ice simulations with [Oceananigans.jl](https://github.com/CliMA/Oceananigans.jl)
 and [NumericalEarth.jl](https://github.com/NumericalEarth/NumericalEarth.jl), aiming to reproduce the MITgcm LLC4320
@@ -17,9 +17,10 @@ refine. Runs on NCSA DeltaAI (GH200).
 
 - **Grid**: `TripolarGrid` from 80°S, 100 z⋆ levels (1.4 m at the surface, 320 m at 6000 m), ETOPO2022 bathymetry
   (`GridFittedBottom`, active cells map). The bathymetry is built on the CPU for the whole grid and partitioned across
-  ranks. The Strait of Gibraltar is carved to the 280 m Camarinal Sill along the row nearest 35.95°N, because a
-  single land cell closes it at 1/6° and the Mediterranean would otherwise be discarded (at 1/12° it is already open).
-  Only the connected world ocean is kept, so the Black and Caspian Seas are land.
+  ranks. Only the connected world ocean is kept, so the Black and Caspian Seas are land. `connect_basins!` keeps
+  the Mediterranean: if the Gulf of Cádiz and the Alboran Sea fall in different basins, it deepens to the 280 m
+  Camarinal Sill the cells along the least-deepening, face-connected path between them. In practice the strait is
+  closed at 1°, 1/3° and 1/6° (2–4 cells deepened) and already open at 1/2°, 1/4° and 1/12°.
 - **Ocean**: `ocean_simulation` defaults only: `WENOVectorInvariant` momentum, `WENO(order=7)` tracers (both
   vertically implicit where the vertical CFL exceeds 0.5), `CATKEVerticalDiffusivity`, `SplitRungeKutta3`,
   `SplitExplicitFreeSurface` with a substep count sized for `max_Δt`. No GM, no horizontal viscosity.
@@ -28,9 +29,14 @@ refine. Runs on NCSA DeltaAI (GH200).
 - **Initial condition**: GLORYS12 daily T, S, sea ice thickness and concentration on 2015-01-01. Ocean at rest.
 - **Forcing**: ERA5 hourly single levels (10 m wind, 2 m temperature and dewpoint, surface pressure, precipitation,
   downwelling short and longwave), JRA55-do rivers and icebergs. Latitude-dependent ocean albedo.
-- **Time step**: adaptive. `TimeStepWizard` with horizontal CFL 0.5, starting from 1 min (1/6°) or 30 s (1/12°)
-  and growing by at most 5% every 10 steps up to `max_Δt` (10 min at 1/6°, 5 min at 1/12°). Vertical advection
-  is implicit, so it is left out of the CFL.
+- **Time step**: adaptive, for maximum throughput. A `TimeStepWizard` limits the horizontal advective CFL to 0.5
+  (vertical advection is implicit) and grows Δt by at most 5% every 10 steps, from 1 min (1/6°) or 30 s (1/12°) up to
+  `max_Δt`, a script argument (default 20 min at 1/6°, 10 min at 1/12°). The barotropic substep count is sized for
+  `max_Δt`, so every Δt ≤ `max_Δt` is stable for the free surface. Advection permits about an hour at 1/6°, so the
+  practical limits are internal gravity waves on the smallest cells (near Antarctica) and the coupled sea ice; find
+  them by raising `max_Δt` until a run fails. Each `max_Δt` writes to its own run directory.
+- **Throughput**: every 50 steps the log reports Δt, wall time per step, and SYPD (simulated years per wall-clock
+  day) over those steps, together with extrema and GPU memory.
 - **Output** (`$RUN_DIRECTORY/<name>/`): daily surface T, S, e, u, v, w; η; sea ice h, ℵ, u, v. Checkpoints every
   10 simulated days. Each run picks up from the latest checkpoint, so you extend a run by resubmitting with a
   larger `stop_days`.
@@ -64,8 +70,8 @@ sbatch slurm/precompile.sbatch
 
 source slurm/env.sh && julia --project download_data.jl 60   # login node: bathymetry + forcing for 60 days
 sbatch slurm/smoke_test.sbatch
-sbatch slurm/sixth_degree.sbatch 10                          # then 30, 90, ... (each picks up)
-sbatch slurm/twelfth_degree.sbatch 10
+sbatch slurm/sixth_degree.sbatch 10 20                       # stop_days max_Δt_minutes; rerun with more days to extend
+sbatch slurm/twelfth_degree.sbatch 10 10
 ```
 
 ## Known limitations

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=gkso-smoke_test
+#SBATCH --job-name=gkm-smoke_test
 #SBATCH --output=logs/smoke_test-%j.log
 #SBATCH --account=bhcr-dtai-gh
 #SBATCH --partition=ghx4

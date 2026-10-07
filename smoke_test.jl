@@ -6,7 +6,7 @@
 include("setup.jl")
 
 iterations = parse(Int, get(ARGS, 1, "300"))
-max_Δt = 10minutes
+max_Δt = 20minutes
 
 grid = global_grid(GPU(); cells_per_degree = 6)
 @info "Built grid" grid

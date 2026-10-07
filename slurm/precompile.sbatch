@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=gkso-precompile
+#SBATCH --job-name=gkm-precompile
 #SBATCH --output=logs/precompile-%j.log
 #SBATCH --account=bhcr-dtai-gh
 #SBATCH --partition=ghx4

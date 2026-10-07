@@ -8,6 +8,7 @@ using Oceananigans.Advection: cell_advection_timescale
 using Oceananigans.BoundaryConditions: fill_halo_regions!
 using Oceananigans.DistributedComputations: @root
 using Oceananigans.Fields: ZeroField
+using Oceananigans.Grids: λnode, φnode
 using ClimaSeaIce.Rheologies: ElastoViscoPlasticRheology
 using ClimaSeaIce.SeaIceDynamics: SplitExplicitSolver
 using CUDA
@@ -18,24 +19,94 @@ using Statistics
 const start_date = DateTime(2015, 1, 1)
 const run_directory = get(ENV, "RUN_DIRECTORY", ".")
 
+@inline function squared_angular_distance(i, j, grid, λ₀, φ₀)
+    λ = λnode(i, j, 1, grid, Center(), Center(), Center())
+    φ = φnode(i, j, 1, grid, Center(), Center(), Center())
+    Δλ = mod(λ - λ₀ + 180, 360) - 180
+    return (Δλ * cosd(φ₀))^2 + (φ - φ₀)^2
+end
+
+nearest_cell(grid, (λ₀, φ₀)) =
+    argmin(((i, j),) -> squared_angular_distance(i, j, grid, λ₀, φ₀), Iterators.product(1:size(grid, 1), 1:size(grid, 2)))
+
+"""
+    connect_basins!(bottom_height, from, to; depth)
+
+Ensure that the ocean cells nearest `from = (λ, φ)` and `to` belong to the same basin, meaning the same region of
+wet cells connected through shared faces (diagonal contact carries no flow on a C grid). If they belong to different
+basins, the cells along the path between them that needs the least total deepening are deepened to `depth`. The path
+is searched within the index box spanned by the two cells, padded by its own size, so it stays local to the passage
+and the result does not depend on resolution. Returns the number of deepened cells.
+"""
+function connect_basins!(bottom_height, from, to; depth)
+    grid = bottom_height.grid
+    z = view(interior(bottom_height), :, :, 1)
+
+    i₁, j₁ = nearest_cell(grid, from)
+    i₂, j₂ = nearest_cell(grid, to)
+
+    basins = NumericalEarth.Bathymetry.ImageMorphology.label_components(z .< 0)
+    basins[i₁, j₁] == basins[i₂, j₂] != 0 && return 0
+
+    pad = max(2, abs(i₂ - i₁), abs(j₂ - j₁))
+    is = max(1, min(i₁, i₂) - pad):min(size(grid, 1), max(i₁, i₂) + pad)
+    js = max(1, min(j₁, j₂) - pad):min(size(grid, 2), max(j₁, j₂) + pad)
+    window = view(z, is, js)
+
+    # Least-deepening path by Bellman-Ford relaxation: the cost of entering a cell is the deepening it needs.
+    deepening = @. max(0, window + depth)
+    start = CartesianIndex(i₁ - first(is) + 1, j₁ - first(js) + 1)
+    stop  = CartesianIndex(i₂ - first(is) + 1, j₂ - first(js) + 1)
+    cost = fill(Inf, size(window))
+    previous = fill(start, size(window))
+    cost[start] = deepening[start]
+    faces = (CartesianIndex(1, 0), CartesianIndex(-1, 0), CartesianIndex(0, 1), CartesianIndex(0, -1))
+
+    relaxed = true
+    while relaxed
+        relaxed = false
+        for c in CartesianIndices(cost), d in faces
+            n = c + d
+            checkbounds(Bool, cost, n) || continue
+            if cost[c] + deepening[n] < cost[n]
+                cost[n] = cost[c] + deepening[n]
+                previous[n] = c
+                relaxed = true
+            end
+        end
+    end
+
+    deepened = 0
+    c = stop
+    while true
+        if deepening[c] > 0
+            window[c] = -depth
+            deepened += 1
+        end
+        c == start && break
+        c = previous[c]
+    end
+
+    return deepened
+end
+
 """
     global_bottom_height(Nx, Ny; halo, gibraltar_sill_depth = 280)
 
-ETOPO2022 bottom height on the whole `Nx × Ny` tripolar grid, computed on the CPU. The grid row nearest 35.95ᵒN is
-carved to `gibraltar_sill_depth` between 5.6ᵒW and 5.0ᵒW before minor basins are removed, because at 1/6ᵒ a single
-land cell closes the Strait of Gibraltar and the Mediterranean would be discarded. Every rank of a distributed run
-builds the same field, so the regridding must already be cached (`download_data.jl` does this).
+ETOPO2022 bottom height on the whole `Nx × Ny` tripolar grid, computed on the CPU, keeping only the world ocean.
+Before minor basins are removed, the Mediterranean is connected to the Atlantic through the Strait of Gibraltar if
+the regridded bathymetry has closed it (at 1/6ᵒ a single land cell does), carving a channel `gibraltar_sill_depth`
+deep (the Camarinal Sill). Every rank of a distributed run builds the same field, so the regridding must already be
+cached (`download_data.jl` does this).
 """
 function global_bottom_height(Nx, Ny; halo, gibraltar_sill_depth = 280)
     grid = TripolarGrid(CPU(); size = (Nx, Ny, 1), halo, z = (-6000, 0))
     bottom_height = regrid_bathymetry(grid; minimum_depth = 10, interpolation_passes = 3, major_basins = Inf)
 
-    λ = mod.(λnodes(grid, Center(), Center(), Center()) .+ 180, 360) .- 180
-    φ = φnodes(grid, Center(), Center(), Center())
-    Δφ = 170 / Ny
-    strait = @. (-5.6 ≤ λ ≤ -5.0) & (abs(φ - 35.95) ≤ Δφ / 2)
-    z = view(interior(bottom_height), :, :, 1)
-    z[strait] .= min.(z[strait], -gibraltar_sill_depth)
+    gulf_of_cadiz = (-6.8, 35.9)
+    alboran_sea = (-4.6, 36.0)
+    deepened = connect_basins!(bottom_height, gulf_of_cadiz, alboran_sea; depth = gibraltar_sill_depth)
+    deepened > 0 && @info "Opened the Strait of Gibraltar on the $Nx × $Ny grid by deepening $deepened cells"
 
     NumericalEarth.Bathymetry.remove_minor_basins!(bottom_height, 1)
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=gkso-sixth_degree
+#SBATCH --job-name=gkm-sixth_degree
 #SBATCH --output=logs/sixth_degree-%j.log
 #SBATCH --account=bhcr-dtai-gh
 #SBATCH --partition=ghx4
