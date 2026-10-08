@@ -15,7 +15,7 @@ using ClimaSeaIce.SeaIceDynamics: SplitExplicitSolver
 using CUDA
 using CDSAPI           # loads the ERA5 download extension
 using CopernicusMarine  # loads the GLORYS download extension
-using Dates
+using Dates: Dates, Date, DateTime, Day, Millisecond
 using Printf
 using Statistics
 
