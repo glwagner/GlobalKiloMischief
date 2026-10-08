@@ -169,7 +169,8 @@ function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120)
         parent(field) .= ifelse.(isnan.(parent(field)), 0, parent(field))
     end
 
-    atmosphere = ERA5PrescribedAtmosphere(arch; start_date, end_date, time_indices_in_memory = 48)
+    atmosphere = ERA5PrescribedAtmosphere(arch; start_date, end_date, time_indices_in_memory = 48,
+                                          pressure = :mean_sea_level_pressure)
     ocean_surface = SurfaceRadiationProperties(albedo = LatitudeDependentAlbedo())
     radiation = ERA5PrescribedRadiation(arch; start_date, end_date, ocean_surface, time_indices_in_memory = 48)
 
@@ -239,8 +240,8 @@ function progress(sim)
     msg = @sprintf("%s (iter %d), Δt: %s, wall/step: %s, SYPD: %.2f", Date(start_date + Millisecond(round(Int, 1000 * time(sim)))),
                    iteration(sim), prettytime(sim.Δt), prettytime(elapsed / max(steps, 1)), sypd)
     msg *= @sprintf(", max|u|: (%.2f, %.2f, %.1e) m s⁻¹", maximum(abs, u), maximum(abs, v), maximum(abs, w))
-    msg *= @sprintf(", extrema(T): (%.2f, %.2f) ᵒC, max(e): %.1e m² s⁻², max(hᵢ): %.2f m",
-                    minimum(T), maximum(T), maximum(e), maximum(sea_ice.ice_thickness))
+    msg *= @sprintf(", extrema(T): (%.2f, %.2f) ᵒC, max(e): %.1e m² s⁻², max(hᵢℵ): %.2f m",
+                    minimum(T), maximum(T), maximum(e), maximum(sea_ice.ice_thickness * sea_ice.ice_concentration))
     CUDA.functional() && (msg *= @sprintf(", GPU memory: %.1f GiB", (CUDA.total_memory() - CUDA.free_memory()) / 2^30))
 
     @root @info msg

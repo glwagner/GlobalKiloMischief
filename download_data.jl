@@ -19,6 +19,6 @@ download(MetadataSet(:temperature, :salinity, :sea_ice_thickness, :sea_ice_conce
                      dataset = GLORYSDaily(), date = start_date))
 
 download(MetadataSet(:eastward_velocity, :northward_velocity, :temperature, :dewpoint_temperature,
-                     :surface_pressure, :total_precipitation,
+                     :mean_sea_level_pressure, :total_precipitation,
                      :downwelling_shortwave_radiation, :downwelling_longwave_radiation;
                      dataset = ERA5HourlySingleLevel(), start_date, end_date))
