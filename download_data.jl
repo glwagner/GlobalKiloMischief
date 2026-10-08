@@ -4,7 +4,6 @@
 #
 #   julia --project download_data.jl [days=30]
 
-using CDSAPI, CopernicusMarine
 using Downloads: download
 include("setup.jl")
 
