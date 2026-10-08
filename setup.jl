@@ -163,6 +163,12 @@ function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120)
     set!(ocean.model, glorys)
     set!(sea_ice.model, glorys)
 
+    # GLORYS marks ice-free ocean as missing rather than zero ice.
+    # TODO: move into NumericalEarth's GLORYS sea ice loading.
+    for field in (sea_ice.model.ice_thickness, sea_ice.model.ice_concentration)
+        parent(field) .= ifelse.(isnan.(parent(field)), 0, parent(field))
+    end
+
     atmosphere = ERA5PrescribedAtmosphere(arch; start_date, end_date, time_indices_in_memory = 48)
     ocean_surface = SurfaceRadiationProperties(albedo = LatitudeDependentAlbedo())
     radiation = ERA5PrescribedRadiation(arch; start_date, end_date, ocean_surface, time_indices_in_memory = 48)
@@ -235,7 +241,7 @@ function progress(sim)
     msg *= @sprintf(", max|u|: (%.2f, %.2f, %.1e) m s⁻¹", maximum(abs, u), maximum(abs, v), maximum(abs, w))
     msg *= @sprintf(", extrema(T): (%.2f, %.2f) ᵒC, max(e): %.1e m² s⁻², max(hᵢ): %.2f m",
                     minimum(T), maximum(T), maximum(e), maximum(sea_ice.ice_thickness))
-    msg *= @sprintf(", GPU memory: %.1f GiB", (CUDA.total_memory() - CUDA.available_memory()) / 2^30)
+    CUDA.functional() && (msg *= @sprintf(", GPU memory: %.1f GiB", (CUDA.total_memory() - CUDA.free_memory()) / 2^30))
 
     @root @info msg
 
