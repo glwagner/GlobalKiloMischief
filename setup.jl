@@ -120,7 +120,7 @@ end
 Tripolar grid from 80°S to the north pole at `1/cells_per_degree` degree resolution, with `Nz` z⋆ levels
 (1.4 m at the surface, 320 m at 6000 m depth) and ETOPO2022 bathymetry (see [`global_bottom_height`](@ref)).
 """
-function global_grid(arch; cells_per_degree, Nz = 100, depth = 6000, halo = (5, 5, 4))
+function global_grid(arch; cells_per_degree, Nz = 100, depth = 6000, halo = (7, 7, 4))
     Nx = 360 * cells_per_degree
     Ny = 170 * cells_per_degree
     z = ExponentialDiscretization(Nz, -depth, 0; scale = 1100, mutable = true)

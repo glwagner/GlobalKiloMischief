@@ -11,7 +11,7 @@ include("setup.jl")
 end_date = start_date + Day(parse(Int, get(ARGS, 1, "30")) + 1)
 
 for cells_per_degree in (6, 12)
-    global_bottom_height(360cells_per_degree, 170cells_per_degree; halo = (5, 5, 4))
+    global_bottom_height(360cells_per_degree, 170cells_per_degree; halo = (7, 7, 4))
 end
 
 download(MetadataSet(:river_freshwater_flux, :iceberg_freshwater_flux; dataset = MultiYearJRA55(), start_date, end_date))
