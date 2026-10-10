@@ -13,7 +13,8 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [sources]
-NumericalEarth = {url = "https://github.com/NumericalEarth/NumericalEarth.jl", rev = "8f8e303bb45663cdf485b5cf28150678b9db6b47"}
+NumericalEarth = {url = "https://github.com/NumericalEarth/NumericalEarth.jl", rev = "741a71e8d6d85c6f74ac0199fc6a2ced6833e1da"}
+Oceananigans = {url = "https://github.com/CliMA/Oceananigans.jl", rev = "66e3dda4e773e3b5eb494a531599cea3a3f2046c"}
 
 [compat]
 ClimaSeaIce = "0.5.11"
