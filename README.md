@@ -46,7 +46,7 @@ refine. Runs on NCSA DeltaAI (GH200).
 Julia ≥ 1.12.3 is required: earlier versions assume 4 KiB pages on aarch64, and JLD2's memory-mapped writes then
 fail on DeltaAI's 64 KiB pages (`SystemError("msync", 22)`, JLD2 #702).
 
-`Project.toml` pins NumericalEarth at `530eecf`, which is `main` plus two open PRs:
+`Project.toml` pins NumericalEarth at `8f8e303`, which is `main` plus two open PRs:
 
 - #742: fixes GLORYS inpainting. Deep levels and land were left at zero, and atoll columns got surface water copied down to the seafloor.
 - #743: lets ERA5 supply mean sea level pressure instead of surface pressure.
