@@ -25,7 +25,8 @@ refine. Runs on NCSA DeltaAI (GH200).
   vertically implicit where the vertical CFL exceeds 0.5), `CATKEVerticalDiffusivity`, `SplitRungeKutta3`,
   `SplitExplicitFreeSurface` with a substep count sized for `max_Δt`. No GM, no horizontal viscosity.
 - **Sea ice**: ClimaSeaIce, zero-layer thermodynamics with snow, mEVP with 120 substeps (relaxation parameter ≤ 120),
-  `WENO(order=7)` advection.
+  incremental remapping of ice volume and concentration (`IncrementalRemapping()`, forward Euler), which keeps thick ice
+  from piling into coastal cells at low concentration, as `WENO` advection of the two separately did.
 - **Initial condition**: GLORYS12 daily T, S, sea ice thickness and concentration on 2015-01-01. Ocean at rest.
 - **Forcing**: ERA5 hourly single levels (10 m wind, 2 m temperature and dewpoint, surface pressure, precipitation,
   downwelling short and longwave), JRA55-do rivers and icebergs. Latitude-dependent ocean albedo.

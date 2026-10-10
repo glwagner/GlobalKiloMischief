@@ -10,6 +10,7 @@ using Oceananigans.BoundaryConditions: fill_halo_regions!
 using Oceananigans.DistributedComputations: @root
 using Oceananigans.Fields: ZeroField
 using Oceananigans.Grids: λnode, φnode
+using ClimaSeaIce: IncrementalRemapping
 using ClimaSeaIce.Rheologies: ElastoViscoPlasticRheology
 using ClimaSeaIce.SeaIceDynamics: SplitExplicitSolver
 using CUDA
@@ -156,7 +157,9 @@ function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120)
     rheology = ElastoViscoPlasticRheology(max_relaxation_parameter = sea_ice_substeps)
     solver = SplitExplicitSolver(grid; substeps = sea_ice_substeps)
     dynamics = NumericalEarth.SeaIces.sea_ice_dynamics(grid, ocean; rheology, solver)
-    sea_ice = sea_ice_simulation(grid, ocean; advection = WENO(order = 7), dynamics)
+    # Incremental remapping transports ice volume and concentration together and requires forward Euler.
+    # WENO reconstructs them separately, which piles thick ice into coastal cells while ℵ < 1.
+    sea_ice = sea_ice_simulation(grid, ocean; advection = IncrementalRemapping(), timestepper = :ForwardEuler, dynamics)
 
     glorys = MetadataSet(:temperature, :salinity, :sea_ice_thickness, :sea_ice_concentration;
                          dataset = GLORYSDaily(), date = start_date)
