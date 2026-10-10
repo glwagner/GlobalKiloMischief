@@ -46,15 +46,17 @@ refine. Runs on NCSA DeltaAI (GH200).
 Julia ≥ 1.12.3 is required: earlier versions assume 4 KiB pages on aarch64, and JLD2's memory-mapped writes then
 fail on DeltaAI's 64 KiB pages (`SystemError("msync", 22)`, JLD2 #702).
 
-`Project.toml` pins NumericalEarth at `3e6fe65` (NumericalEarth #739, which windows the ERA5 specific humidity
-like the other ERA5 fields) and Oceananigans `main` at `ac83d85` (still 0.113.5). The `main` pin picks up changes
-that have not been released yet:
+`Project.toml` pins NumericalEarth at `530eecf`, which is `main` plus two open PRs:
 
-- #6154: the serial tripolar fold no longer needs extended halos.
-- #5897 and #6081: fewer host–device syncs and allocations in distributed halo exchange.
+- #742: fixes GLORYS inpainting. Deep levels and land were left at zero, and atoll columns got surface water copied down to the seafloor.
+- #743: lets ERA5 supply mean sea level pressure instead of surface pressure.
 
-ClimaSeaIce 0.5.11 already includes the distributed and tripolar EVP fixes (#137, #152, #146, #135) and the
-metric-aware stresses (#164).
+Oceananigans is the v0.113.6 release, and ClimaSeaIce is 0.5.11. ClimaSeaIce 0.5.11 already includes the distributed and
+tripolar EVP fixes (#137, #152, #146, #135) and the metric-aware stresses (#164).
+
+Oceananigans 0.114 brings a reworked active-cell map (#6180) and drops duplicated north-fold work for y-partitioned
+distributed tripolar grids (#6208). It needs ClimaSeaIce and NumericalEarth to accept 0.114 first. #6208 is small enough
+to cherry-pick onto 0.113 for the 4-GPU runs.
 
 Upstream PRs to watch: Oceananigans #6111 (SSPRK3), #6082 (CUDA graphs for the barotropic solver), #6152
 (implicit drag with split RK) and #5888 (active-cell load balancing); ClimaSeaIce #184 (sea ice on its own
