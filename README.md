@@ -37,7 +37,7 @@ refine. Runs on NCSA DeltaAI (GH200).
   them by raising `max_Δt` until a run fails. Each `max_Δt` writes to its own run directory.
 - **Throughput**: every 50 steps the log reports Δt, wall time per step, and SYPD (simulated years per wall-clock
   day) over those steps, together with extrema and GPU memory.
-- **Output** (`$RUN_DIRECTORY/<name>/`): daily surface T, S, e, u, v, w; η; sea ice h, ℵ, u, v. Checkpoints every
+- **Output** (`$RUN_DIRECTORY/<name>/`, on `/work/nvme`): daily surface T, S, e, u, v, w; η; sea ice h, ℵ, u, v. Checkpoints every
   10 simulated days. Each run picks up from the latest checkpoint, so you extend a run by resubmitting with a
   larger `stop_days`.
 

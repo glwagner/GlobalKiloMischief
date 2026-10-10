@@ -245,6 +245,7 @@ function progress(sim)
     CUDA.functional() && (msg *= @sprintf(", GPU memory: %.1f GiB", (CUDA.total_memory() - CUDA.free_memory()) / 2^30))
 
     @root @info msg
+    flush(stderr)  # batch output is block-buffered, and a crash would discard it
 
     wall_clock[] = time_ns()
     last_progress[] = (iteration = iteration(sim), time = time(sim))

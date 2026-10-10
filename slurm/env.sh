@@ -10,7 +10,8 @@ export OPENBLAS_NUM_THREADS=${OPENBLAS_NUM_THREADS:-8}
 export JULIA_PKG_PRECOMPILE_AUTO=0
 # Downloaded and cached datasets (ERA5, GLORYS, JRA55, ETOPO) live on /work, not in the home quota.
 export NUMERICALEARTH_DATA_DIRECTORY=/work/hdd/bhcr/glwagner/numericalearth_data
-export RUN_DIRECTORY=${RUN_DIRECTORY:-/work/hdd/bhcr/glwagner/GlobalKiloMischief}
+# Run output and 20 GB checkpoints go on the NVMe allocation; the HDD allocation holds the input data.
+export RUN_DIRECTORY=${RUN_DIRECTORY:-/work/nvme/bhcr/glwagner/GlobalKiloMischief}
 cd /u/glwagner/GlobalKiloMischief
 mkdir -p logs "$RUN_DIRECTORY" "$NUMERICALEARTH_DATA_DIRECTORY"
 echo "host: $(hostname)  job: ${SLURM_JOB_ID:-none}  start: $(date)"
