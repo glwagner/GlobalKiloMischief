@@ -1073,11 +1073,11 @@ version = "1.3.0"
 
 [[deps.NumericalEarth]]
 deps = ["Accessors", "Adapt", "CFTime", "ClimaSeaIce", "CubedSphere", "DataDeps", "Dates", "Distances", "DocStringExtensions", "Downloads", "GPUArraysCore", "Glob", "ImageMorphology", "JLD2", "KernelAbstractions", "LibCURL", "MeshArrays", "NCDatasets", "NetworkOptions", "Oceananigans", "OffsetArrays", "PrecompileTools", "Printf", "Scratch", "SeawaterPolynomials", "StaticArrays", "Statistics", "Thermodynamics", "ZipFile"]
-git-tree-sha1 = "9f1b9eed2617c27d3695548451a16c6f0c69ed13"
-repo-rev = "741a71e8d6d85c6f74ac0199fc6a2ced6833e1da"
+git-tree-sha1 = "f7ceb0f93b34562391f50978cc4da33bfdb93126"
+repo-rev = "9ef864a27eb997d55a3ca7c6fbd782fee8f12ed0"
 repo-url = "https://github.com/NumericalEarth/NumericalEarth.jl"
 uuid = "904d977b-046a-4731-8b86-9235c0d1ef02"
-version = "0.8.1"
+version = "0.8.2"
 
     [deps.NumericalEarth.extensions]
     NumericalEarthArchGDALExt = ["ArchGDAL", "GDAL"]

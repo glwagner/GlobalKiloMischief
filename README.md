@@ -47,11 +47,13 @@ refine. Runs on NCSA DeltaAI (GH200).
 Julia ≥ 1.12.3 is required: earlier versions assume 4 KiB pages on aarch64, and JLD2's memory-mapped writes then
 fail on DeltaAI's 64 KiB pages (`SystemError("msync", 22)`, JLD2 #702).
 
-`Project.toml` pins NumericalEarth at `741a71e` (branch `glw/global-kilo-mischief`), which is `main` plus three open PRs:
+`Project.toml` pins NumericalEarth at `9ef864a` (branch `glw/global-kilo-mischief`), which is `main` plus four open PRs:
 
 - #742: fixes GLORYS inpainting. Deep levels and land were left at zero, and atoll columns got surface water copied down to the seafloor.
 - #743: lets ERA5 supply mean sea level pressure instead of surface pressure.
 - #769: builds JRA55 river routing on distributed grids (it crashed rebuilding the grid on the CPU).
+- #770: adds `frazil_formation_depth`. We set 50 m: deep cells cooled below freezing by advection undershoots at steep
+  topography (900 m near the Faroes) made up to 5.5 m/day of surface ice over 9 ᵒC water.
 
 Oceananigans is pinned at `66e3dda` (branch `glw/v0.113.6-north-fold`): the v0.113.6 release plus #6208, which
 drops duplicated north-fold work for y-partitioned distributed tripolar grids, as in the 4-GPU `Partition(1, 4)` run.
