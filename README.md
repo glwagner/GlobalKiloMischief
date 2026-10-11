@@ -21,9 +21,12 @@ refine. Runs on NCSA DeltaAI (GH200).
   the Mediterranean: if the Gulf of Cádiz and the Alboran Sea fall in different basins, it deepens to the 280 m
   Camarinal Sill the cells along the least-deepening, face-connected path between them. In practice the strait is
   closed at 1°, 1/3° and 1/6° (2–4 cells deepened) and already open at 1/2°, 1/4° and 1/12°.
-- **Ocean**: `ocean_simulation` defaults only: `WENOVectorInvariant` momentum, `WENO(order=7)` tracers (both
+- **Ocean**: `ocean_simulation` defaults: `WENOVectorInvariant` momentum, `WENO(order=7)` tracers (both
   vertically implicit where the vertical CFL exceeds 0.5), `CATKEVerticalDiffusivity`, `SplitRungeKutta3`,
-  `SplitExplicitFreeSurface` with a substep count sized for `max_Δt`. No GM, no horizontal viscosity.
+  `SplitExplicitFreeSurface` with a substep count sized for `max_Δt`. No GM, no horizontal viscosity. One change:
+  near walls the tracer WENO falls back to first-order upwind (`minimum_buffer_upwind_order = 1`) instead of
+  second-order centered. Centered fluxes leave bottom corner cells undamped, and overflow cells in the Faroe Bank
+  Channel and Denmark Strait cooled to -12.7 ᵒC in 10 days.
 - **Sea ice**: ClimaSeaIce, zero-layer thermodynamics with snow, mEVP with 120 substeps (relaxation parameter ≤ 120),
   incremental remapping of ice volume and concentration (`IncrementalRemapping()`, forward Euler), which keeps thick ice
   from piling into coastal cells at low concentration, as `WENO` advection of the two separately did.
@@ -39,7 +42,7 @@ refine. Runs on NCSA DeltaAI (GH200).
 - **Throughput**: every 50 steps the log reports Δt, wall time per step, and SYPD (simulated years per wall-clock
   day) over those steps, together with extrema and GPU memory.
 - **Output** (`$RUN_DIRECTORY/<name>/`, on `/work/nvme`): daily surface T, S, e, u, v, w; η; sea ice h, ℵ, u, v. Checkpoints every
-  10 simulated days. Each run picks up from the latest checkpoint, so you extend a run by resubmitting with a
+  5 simulated days, so 1-hour interactive jobs of 5 days each can be chained. Each run picks up from the latest checkpoint, so you extend a run by resubmitting with a
   larger `stop_days`.
 
 ## Pinned versions

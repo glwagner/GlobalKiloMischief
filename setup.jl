@@ -198,9 +198,9 @@ horizontal_advection_timescale(model) =
     global_simulation(model; name, Δt, max_Δt, stop_time)
 
 Coupled simulation with an adaptive time step, a progress message every 50 iterations, daily surface output,
-and a checkpoint every 10 days so that a later run with a longer `stop_time` picks up where this one ended.
+and a checkpoint every 5 days so that a later run with a longer `stop_time` picks up where this one ended.
 """
-function global_simulation(model; name, Δt, max_Δt, stop_time, checkpoint_interval = 10days)
+function global_simulation(model; name, Δt, max_Δt, stop_time, checkpoint_interval = 5days)
     simulation = Simulation(model; Δt, stop_time)
     directory = mkpath(joinpath(run_directory, name))
 
