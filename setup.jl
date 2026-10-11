@@ -96,6 +96,31 @@ function connect_basins!(bottom_height, from, to; depth)
 end
 
 """
+    fill_pits!(bottom_height)
+
+Raise every ocean column that is deeper than all four of its neighbors to the depth of its deepest neighbor, until
+no such pit is left, and return the number of raises. A pit exchanges water only through its top, so shortwave
+radiation absorbed at the seafloor accumulates in it: shallow pits at the Amazon mouth heated to 37 ᵒC in 30 days.
+"""
+function fill_pits!(bottom_height)
+    zb = view(interior(bottom_height), :, :, 1)
+    Nx, Ny = size(zb)
+    filled = 0
+    while true
+        raised = 0
+        for j in 2:Ny-1, i in 1:Nx
+            deepest_neighbor = min(zb[mod1(i - 1, Nx), j], zb[mod1(i + 1, Nx), j], zb[i, j - 1], zb[i, j + 1])
+            if zb[i, j] < deepest_neighbor
+                zb[i, j] = deepest_neighbor
+                raised += 1
+            end
+        end
+        raised == 0 && return filled
+        filled += raised
+    end
+end
+
+"""
     global_bottom_height(Nx, Ny; halo, gibraltar_sill_depth = 280)
 
 ETOPO2022 bottom height on the whole `Nx × Ny` tripolar grid, computed on the CPU, keeping only the world ocean.
@@ -114,6 +139,8 @@ function global_bottom_height(Nx, Ny; halo, gibraltar_sill_depth = 280)
     deepened > 0 && @info "Opened the Strait of Gibraltar on the $Nx × $Ny grid by deepening $deepened cells"
 
     NumericalEarth.Bathymetry.remove_minor_basins!(bottom_height, 1)
+    filled = fill_pits!(bottom_height)
+    @info "Filled the pits of the $Nx × $Ny grid ($filled raises)"
 
     return bottom_height
 end
