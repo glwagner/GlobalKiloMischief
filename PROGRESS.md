@@ -17,7 +17,9 @@
 **2026-10-11**
 - 1/12ᵒ test failed at the first time step after 29 min of setup: the 4 ranks created different numbers of
   distributed fields. Cause: in the `progress` callback, `maximum(h * ℵ)` builds one extra field on the fold rank of a
-  distributed tripolar grid (an Oceananigans bug). Workaround: build the field once on every rank and reduce that.
+  distributed tripolar grid (an Oceananigans bug that affects any reduction of a 2D field). Workaround: take the
+  maximum of the interior array and combine it with `all_reduce`; checked on a 4-rank toy grid. Resubmitted the 1-hour
+  4-GPU test.
 - ERA5 reload: almost all of the time is cold reads from `/work/hdd`. Reading a window's files concurrently cuts a
   reload from about 50 s to 15 s ([NumericalEarth #773](https://github.com/NumericalEarth/NumericalEarth.jl/pull/773),
   now pinned). Julia threads now follow the Slurm CPU count.
