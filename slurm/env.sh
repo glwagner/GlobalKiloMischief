@@ -4,7 +4,7 @@ source "$HOME/.bashrc" > /dev/null 2>&1
 export PATH=/u/glwagner/opt/julia-1.12.7/bin:$PATH
 # Let CUDA.jl use its own runtime artifacts rather than the HPC SDK libraries on LD_LIBRARY_PATH.
 unset LD_LIBRARY_PATH
-export JULIA_NUM_THREADS=${JULIA_NUM_THREADS:-8}
+export JULIA_NUM_THREADS=${JULIA_NUM_THREADS:-${SLURM_CPUS_PER_TASK:-8}}  # threads also read the ERA5 files concurrently
 export JULIA_NUM_PRECOMPILE_TASKS=${JULIA_NUM_PRECOMPILE_TASKS:-8}
 export OPENBLAS_NUM_THREADS=${OPENBLAS_NUM_THREADS:-8}
 export JULIA_PKG_PRECOMPILE_AUTO=0
