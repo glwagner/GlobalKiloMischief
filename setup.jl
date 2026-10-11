@@ -7,7 +7,7 @@ using Oceananigans.Units
 using Oceananigans.Architectures: architecture
 using Oceananigans.Advection: cell_advection_timescale
 using Oceananigans.BoundaryConditions: fill_halo_regions!
-using Oceananigans.DistributedComputations: @root
+using Oceananigans.DistributedComputations: @root, all_reduce
 using Oceananigans.Fields: ZeroField
 using Oceananigans.Grids: λnode, φnode
 using Oceananigans.TimeSteppers: AdaptiveVerticallyImplicitDiscretization
@@ -235,7 +235,10 @@ function global_simulation(model; name, Δt, max_Δt, stop_time, checkpoint_inte
 
     wizard = TimeStepWizard(; cfl = 0.5, max_Δt, max_change = 1.05, cell_advection_timescale = horizontal_advection_timescale)
     add_callback!(simulation, wizard, IterationInterval(10))
-    add_callback!(simulation, progress, IterationInterval(50))
+    # On a distributed tripolar grid, reducing a two-dimensional field builds one more field on the fold rank than on the
+    # others, after which halo exchanges no longer match across ranks. So `progress` reduces the interior array instead.
+    ice_volume = Field(model.sea_ice.model.ice_thickness * model.sea_ice.model.ice_concentration)
+    add_callback!(simulation, progress, IterationInterval(50); parameters = ice_volume)
 
     ocean = model.ocean
     sea_ice = model.sea_ice
@@ -265,9 +268,8 @@ end
 const wall_clock = Ref(time_ns())
 const last_progress = Ref((iteration = 0, time = 0.0))
 
-function progress(sim)
+function progress(sim, ice_volume)
     ocean = sim.model.ocean.model
-    sea_ice = sim.model.sea_ice.model
     u, v, w = ocean.velocities
     T = ocean.tracers.T
     e = ocean.tracers.e
@@ -281,7 +283,7 @@ function progress(sim)
                    iteration(sim), prettytime(sim.Δt), prettytime(elapsed / max(steps, 1)), sypd)
     msg *= @sprintf(", max|u|: (%.2f, %.2f, %.1e) m s⁻¹", maximum(abs, u), maximum(abs, v), maximum(abs, w))
     msg *= @sprintf(", extrema(T): (%.2f, %.2f) ᵒC, max(e): %.1e m² s⁻², max(hᵢℵ): %.2f m",
-                    minimum(T), maximum(T), maximum(e), maximum(sea_ice.ice_thickness * sea_ice.ice_concentration))
+                    minimum(T), maximum(T), maximum(e), all_reduce(max, maximum(interior(compute!(ice_volume))), architecture(ice_volume)))
     CUDA.functional() && (msg *= @sprintf(", GPU memory: %.1f GiB", (CUDA.total_memory() - CUDA.free_memory()) / 2^30))
 
     @root @info msg
