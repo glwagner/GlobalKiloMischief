@@ -201,8 +201,10 @@ Coupled simulation with an adaptive time step, a progress message every 50 itera
 and a checkpoint every 5 days so that a later run with a longer `stop_time` picks up where this one ended.
 """
 function global_simulation(model; name, Δt, max_Δt, stop_time, checkpoint_interval = 5days)
-    simulation = Simulation(model; Δt, stop_time)
     directory = mkpath(joinpath(run_directory, name))
+    # Checkpoints do not store Δt. A spun-up state permits `max_Δt`, so a pickup starts there instead of ramping up again.
+    picking_up = any(startswith("checkpoint"), readdir(directory))
+    simulation = Simulation(model; Δt = picking_up ? max_Δt : Δt, stop_time)
 
     wizard = TimeStepWizard(; cfl = 0.5, max_Δt, max_change = 1.05, cell_advection_timescale = horizontal_advection_timescale)
     add_callback!(simulation, wizard, IterationInterval(10))
