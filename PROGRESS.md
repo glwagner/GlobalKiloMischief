@@ -4,21 +4,21 @@
 
 | | 1/6ᵒ, 1 GPU | 1/12ᵒ, 4 GPUs |
 |---|---|---|
-| Furthest stable run | 30 days at Δt = 20 min | not yet run on GPUs |
+| Furthest stable run | 30 days at Δt = 20 min (restarting with pits filled) | not yet run on GPUs |
 | SYPD | 2.05 between ERA5 reloads, about 1.5 including them | queued (1-hour interactive test) |
 | Largest Δt tried | 20 min (cap, not a stability limit) | 10 min planned |
 
 **Open issues**
-- Bottom cells in single-cell bathymetry pits heat to 37 ᵒC (Amazon mouth).
 - Sea ice reaches 11–13 m in a few enclosed coastal cells.
 - ERA5 reload costs about 27% of throughput.
 
 ## Log
 
 **2026-10-11**
+- Pits filled: every column deeper than all four neighbors is raised to its deepest neighbor (37k columns at 1/6ᵒ,
+  63k at 1/12ᵒ). Shortwave absorbed at the seafloor had heated pits at the Amazon mouth to 37 ᵒC. The 1/6ᵒ run
+  restarts from day 0 after the 1/12ᵒ test.
 - Day 30 reached at 1/6ᵒ, stable.
-- Warm maximum (37.1 ᵒC): bottom cells of single-cell pits, whose four horizontal neighbors are solid, at the Amazon
-  mouth. Next: fill pits in `global_bottom_height`.
 - Sea-ice maximum (11.3 m): an Antarctic coastal cell 10 m deep, mostly enclosed by land.
 - 1/12ᵒ: submitted a 1-hour 4-GPU interactive test. Job 3354360 on `ghx4` stays queued (estimated start 2026-10-12).
 - Picked-up runs now start at `max_Δt`. Checkpoints do not store Δt, so each run was ramping up from 1 min again.
