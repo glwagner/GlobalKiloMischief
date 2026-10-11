@@ -5,7 +5,7 @@
 | | 1/6ᵒ, 1 GPU | 1/12ᵒ, 4 GPUs |
 |---|---|---|
 | Furthest stable run | 30 days at Δt = 20 min (restarting with pits filled) | not yet run on GPUs |
-| SYPD | 2.05 between ERA5 reloads, about 1.5 including them | queued (1-hour interactive test) |
+| SYPD | 2.05 between ERA5 reloads, about 1.5 including them | first test failed at step 1 (debugging) |
 | Largest Δt tried | 20 min (cap, not a stability limit) | 10 min planned |
 
 **Open issues**
@@ -15,6 +15,9 @@
 ## Log
 
 **2026-10-11**
+- 1/12ᵒ test failed at the first time step after 29 min of setup: the 4 ranks created different numbers of
+  distributed fields (Oceananigans `check_field_tags`). Debugging with a 4-rank CPU run that prints each rank's
+  count after every setup stage.
 - Pits filled: every column deeper than all four neighbors is raised to its deepest neighbor (37k columns at 1/6ᵒ,
   63k at 1/12ᵒ). Shortwave absorbed at the seafloor had heated pits at the Amazon mouth to 37 ᵒC. The 1/6ᵒ run
   restarts from day 0 after the 1/12ᵒ test.
