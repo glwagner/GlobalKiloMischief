@@ -10,14 +10,17 @@
 
 **Open issues**
 - Sea ice reaches 11–13 m in a few enclosed coastal cells.
-- ERA5 reload costs about 27% of throughput.
+- ERA5 reload costs about 27% of throughput (fix pinned, not yet measured in a run).
 
 ## Log
 
 **2026-10-11**
 - 1/12ᵒ test failed at the first time step after 29 min of setup: the 4 ranks created different numbers of
-  distributed fields (Oceananigans `check_field_tags`). Debugging with a 4-rank CPU run that prints each rank's
-  count after every setup stage.
+  distributed fields. Cause: in the `progress` callback, `maximum(h * ℵ)` builds one extra field on the fold rank of a
+  distributed tripolar grid (an Oceananigans bug). Workaround: build the field once on every rank and reduce that.
+- ERA5 reload: almost all of the time is cold reads from `/work/hdd`. Reading a window's files concurrently cuts a
+  reload from about 50 s to 15 s ([NumericalEarth #773](https://github.com/NumericalEarth/NumericalEarth.jl/pull/773),
+  now pinned). Julia threads now follow the Slurm CPU count.
 - Pits filled: every column deeper than all four neighbors is raised to its deepest neighbor (37k columns at 1/6ᵒ,
   63k at 1/12ᵒ). Shortwave absorbed at the seafloor had heated pits at the Amazon mouth to 37 ᵒC. The 1/6ᵒ run
   restarts from day 0 after the 1/12ᵒ test.
