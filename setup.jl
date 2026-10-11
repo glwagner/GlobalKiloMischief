@@ -10,6 +10,7 @@ using Oceananigans.BoundaryConditions: fill_halo_regions!
 using Oceananigans.DistributedComputations: @root
 using Oceananigans.Fields: ZeroField
 using Oceananigans.Grids: λnode, φnode
+using Oceananigans.TimeSteppers: AdaptiveVerticallyImplicitDiscretization
 using ClimaSeaIce: IncrementalRemapping
 using ClimaSeaIce.Rheologies: ElastoViscoPlasticRheology
 using ClimaSeaIce.SeaIceDynamics: SplitExplicitSolver
@@ -151,7 +152,12 @@ function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120)
     land = JRA55PrescribedLand(grid; dataset = MultiYearJRA55(), start_date, end_date)
 
     free_surface = NumericalEarth.Oceans.default_free_surface(grid; fixed_Δt = max_Δt)
-    ocean = ocean_simulation(grid; free_surface, river_routing = land.river_routing)
+    # The `ocean_simulation` default tracer scheme, except that near walls WENO falls back to first-order upwind
+    # instead of second-order centered reconstruction. With centered fluxes on every open face, a bottom corner cell
+    # has no damping: overflow cells in the Faroe Bank Channel cooled at 1.7 ᵒC/day to -12.7 ᵒC in 10 days.
+    tracer_advection = WENO(order = 7, minimum_buffer_upwind_order = 1,
+                            time_discretization = AdaptiveVerticallyImplicitDiscretization(cfl = 0.5))
+    ocean = ocean_simulation(grid; free_surface, tracer_advection, river_routing = land.river_routing)
 
     # mEVP converges only if the substep count is at least the relaxation parameter.
     rheology = ElastoViscoPlasticRheology(max_relaxation_parameter = sea_ice_substeps)
