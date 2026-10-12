@@ -4,18 +4,21 @@
 
 | | 1/6ᵒ, 1 GPU | 1/12ᵒ, 4 GPUs |
 |---|---|---|
-| Furthest stable run | day 8 of the restart with filled pits (30 days before) | 1 day at Δt = 10 min |
-| SYPD | 2.05 between ERA5 reloads, about 1.5 including them | 0.74 (2.2 s/step), first 100 steps |
+| Furthest stable run | day 15 of the restart with filled pits (30 days before) | 1 day at Δt = 10 min |
+| SYPD | 2.1 between reloads, 1.62 over days 5–15 | 0.74 (2.2 s/step), first 100 steps |
 | Largest Δt tried | 20 min (cap, not a stability limit) | 10 min, from rest (cap) |
 
 **Open issues**
 - Sea ice reaches 11–13 m in a few enclosed coastal cells.
 - ERA5 reload costs about 25% of throughput (fix now installed, not yet measured in a run).
-- A 1-hour job spends about 28 min before the first step (16 min setup, 11 min compiling the first step).
+- A 1-hour job spends about 21 min before the first step: building the model takes 14 min (61% of it not compiling), the first step 5.6 min.
 
 ## Log
 
 **2026-10-12**
+- 1/6ᵒ days 5–15 in 48 min, stable: T in (−2.03, 33.3) ᵒC, sea ice up to 13 m (fold/coastal cells again).
+  1.62 SYPD over the segment, up from about 1.5. Step times still spike irregularly (one 50-step window cost +125 s, others +25 s).
+  Next segment reports each slow step and times each stage of the model build.
 - 1/12ᵒ runs on 4 GPUs: 1 day, stable, 2.2 s/step at Δt = 10 min, **0.74 SYPD** (72% weak-scaling efficiency vs 1/6ᵒ).
   T in (−2.0, 34.8) ᵒC, max|u| 4.2 m/s, 78 GiB per GPU. First step compiles for 19 min.
 - It started at Δt = 10 min from rest, by accident (it treated the iteration-0 checkpoint as a pickup), and held.
