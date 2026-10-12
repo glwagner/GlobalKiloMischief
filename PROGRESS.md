@@ -10,14 +10,18 @@
 
 **Open issues**
 - Sea ice reaches 11–13 m in a few enclosed coastal cells.
-- Per-step overheads: ERA5 reload 33 s per 47 h (was 70 s), JRA55 runoff stall ~167 s per ~10 days, daily output 1.8 s, checkpoint 24 s.
+- Per-step overheads: ERA5 reload 33 s per 47 h (was 70 s), daily output 1.8 s, checkpoint 24 s, and a one-time
+  125–167 s stall at the first daily output after a pickup (output writers write the grid on first use).
 - A 1-hour job spends about 22 min before the first step. Model build 14.4 min, of which JRA55 land is 6.1 min, ERA5 atmosphere 2.2, coupled model 1.5 (compiling); first step 5.7 min.
 
 ## Log
 
 **2026-10-12**
 - 1/6ᵒ days 15–25, stable: T in (−2.23, 33.8) ᵒC, sea ice ≤ 12.7 m. Slow-step log attributes the overheads (status above).
-  A subagent is profiling the JRA55 land build and stall (the 2015 runoff file is only 57 MB, so not I/O).
+- JRA55 land build: 364 s → 31 s. Brute-force nearest-wet-cell search for 16k river mouths; now searched within a
+  latitude band, results identical ([NumericalEarth #774](https://github.com/NumericalEarth/NumericalEarth.jl/pull/774)).
+  The in-run "JRA55 stall" was the output writers' first write, not JRA55 (its reloads take 0.1 s).
+- #773 now also reads the next ERA5 window's files in the background after each reload. Both pinned (`77de1e0`).
 - 1/6ᵒ days 5–15 in 48 min, stable: T in (−2.03, 33.3) ᵒC, sea ice up to 13 m (fold/coastal cells again).
   1.62 SYPD over the segment, up from about 1.5. Step times still spike irregularly (one 50-step window cost +125 s, others +25 s).
   Next segment reports each slow step and times each stage of the model build.
