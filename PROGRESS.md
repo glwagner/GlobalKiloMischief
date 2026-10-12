@@ -4,19 +4,22 @@
 
 | | 1/6ᵒ, 1 GPU | 1/12ᵒ, 4 GPUs |
 |---|---|---|
-| Furthest stable run | day 25 of the restart with filled pits | 1 day at Δt = 10 min |
-| SYPD | 2.1 between reloads, 1.62 over days 15–25 (1.83 without the JRA55 stall) | 0.74 (2.2 s/step), first 100 steps |
-| Largest Δt tried | 20 min (cap, not a stability limit) | 10 min, from rest (cap) |
+| Furthest stable run | day 35 at Δt = 20 min | 1 day at Δt = 10 min |
+| SYPD | 2.1 between reloads, **1.95 sustained** (days 30–35, incl. reloads, output, checkpoint) | 0.74 (2.2 s/step), first 100 steps |
+| Largest Δt tried | 20 min; 30 min under test from day 35 | 10 min, from rest (cap) |
 
 **Open issues**
 - Sea ice reaches 11–13 m in a few enclosed coastal cells.
-- Per-step overheads: ERA5 reload 33 s per 47 h (was 70 s), daily output 1.8 s, checkpoint 24 s, and a one-time
-  125–167 s stall at the first daily output after a pickup (output writers write the grid on first use).
-- A 1-hour job spends about 22 min before the first step. Model build 14.4 min, of which JRA55 land is 6.1 min, ERA5 atmosphere 2.2, coupled model 1.5 (compiling); first step 5.7 min.
+- Per-step overheads: ERA5 reload 5–11 s per 47 h (was 70 s), daily output 1.8 s, checkpoint 24 s, and a one-time
+  ~160 s stall at the first daily output after a pickup (output writers write the grid on first use).
+- A 1-hour job spends about 17 min before the first step: model build 10.4 min (ERA5 first window 2–4.5 min, compilation ~5), grid 1.2, first step 5.6.
 
 ## Log
 
 **2026-10-12**
+- 1/6ᵒ days 25–35 in 43 min, stable: T in (−2.34, 34.5) ᵒC, sea ice ≤ 13.5 m, falling to 10.6 m. With #773 and #774:
+  JRA55 land 364 → 29 s, ERA5 reloads 33 → 5–11 s after the first. **1.95 SYPD sustained.**
+- Branched a max Δt = 30 min run from the day-35 checkpoint (`sixth_degree_dt30min`), 10 days.
 - 1/6ᵒ days 15–25, stable: T in (−2.23, 33.8) ᵒC, sea ice ≤ 12.7 m. Slow-step log attributes the overheads (status above).
 - JRA55 land build: 364 s → 31 s. Brute-force nearest-wet-cell search for 16k river mouths; now searched within a
   latitude band, results identical ([NumericalEarth #774](https://github.com/NumericalEarth/NumericalEarth.jl/pull/774)).
