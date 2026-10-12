@@ -176,7 +176,7 @@ The barotropic substep count is sized for `max_Δt`, so any `Δt ≤ max_Δt` is
 function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120)
     arch = architecture(grid)
 
-    land = JRA55PrescribedLand(grid; dataset = MultiYearJRA55(), start_date, end_date)
+    land = @time "  JRA55 land" JRA55PrescribedLand(grid; dataset = MultiYearJRA55(), start_date, end_date)
 
     free_surface = NumericalEarth.Oceans.default_free_surface(grid; fixed_Δt = max_Δt)
     # The `ocean_simulation` default tracer scheme, except that near walls WENO falls back to first-order upwind
@@ -184,7 +184,7 @@ function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120)
     # has no damping: overflow cells in the Faroe Bank Channel cooled at 1.7 ᵒC/day to -12.7 ᵒC in 10 days.
     tracer_advection = WENO(order = 7, minimum_buffer_upwind_order = 1,
                             time_discretization = AdaptiveVerticallyImplicitDiscretization(cfl = 0.5))
-    ocean = ocean_simulation(grid; free_surface, tracer_advection, river_routing = land.river_routing)
+    ocean = @time "  ocean simulation" ocean_simulation(grid; free_surface, tracer_advection, river_routing = land.river_routing)
 
     # mEVP converges only if the substep count is at least the relaxation parameter.
     rheology = ElastoViscoPlasticRheology(max_relaxation_parameter = sea_ice_substeps)
@@ -192,12 +192,14 @@ function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120)
     dynamics = NumericalEarth.SeaIces.sea_ice_dynamics(grid, ocean; rheology, solver)
     # Incremental remapping transports ice volume and concentration together and requires forward Euler.
     # WENO reconstructs them separately, which piles thick ice into coastal cells while ℵ < 1.
-    sea_ice = sea_ice_simulation(grid, ocean; advection = IncrementalRemapping(), timestepper = :ForwardEuler, dynamics)
+    sea_ice = @time "  sea ice simulation" sea_ice_simulation(grid, ocean; advection = IncrementalRemapping(), timestepper = :ForwardEuler, dynamics)
 
     glorys = MetadataSet(:temperature, :salinity, :sea_ice_thickness, :sea_ice_concentration;
                          dataset = GLORYSDaily(), date = start_date)
-    set!(ocean.model, glorys)
-    set!(sea_ice.model, glorys)
+    @time "  GLORYS initial condition" begin
+        set!(ocean.model, glorys)
+        set!(sea_ice.model, glorys)
+    end
 
     # GLORYS marks ice-free ocean as missing rather than zero ice.
     # TODO: move into NumericalEarth's GLORYS sea ice loading.
@@ -205,14 +207,14 @@ function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120)
         parent(field) .= ifelse.(isnan.(parent(field)), 0, parent(field))
     end
 
-    atmosphere = ERA5PrescribedAtmosphere(arch; start_date, end_date, time_indices_in_memory = 48,
+    atmosphere = @time "  ERA5 atmosphere" ERA5PrescribedAtmosphere(arch; start_date, end_date, time_indices_in_memory = 48,
                                           pressure = :mean_sea_level_pressure)
     ocean_surface = SurfaceRadiationProperties(albedo = LatitudeDependentAlbedo())
-    radiation = ERA5PrescribedRadiation(arch; start_date, end_date, ocean_surface, time_indices_in_memory = 48)
+    radiation = @time "  ERA5 radiation" ERA5PrescribedRadiation(arch; start_date, end_date, ocean_surface, time_indices_in_memory = 48)
 
     # There are no ice-shelf cavities, so supercooling below the upper ocean comes only from numerical undershoots
     # (as at the bottom of steep topography), and must not turn into surface ice.
-    return OceanSeaIceModel(ocean, sea_ice; atmosphere, land, radiation, frazil_formation_depth = 50)
+    return @time "  coupled model" OceanSeaIceModel(ocean, sea_ice; atmosphere, land, radiation, frazil_formation_depth = 50)
 end
 
 # Vertical advection is implicit where it would limit Δt, so only horizontal advection sets the time step.
@@ -240,6 +242,7 @@ function global_simulation(model; name, Δt, max_Δt, stop_time, checkpoint_inte
     # others, after which halo exchanges no longer match across ranks. So `progress` reduces the interior array instead.
     ice_volume = Field(model.sea_ice.model.ice_thickness * model.sea_ice.model.ice_concentration)
     add_callback!(simulation, progress, IterationInterval(50); parameters = ice_volume)
+    add_callback!(simulation, report_slow_step, IterationInterval(1))
 
     ocean = model.ocean
     sea_ice = model.sea_ice
@@ -267,6 +270,16 @@ function global_simulation(model; name, Δt, max_Δt, stop_time, checkpoint_inte
 end
 
 const wall_clock = Ref(time_ns())
+const step_clock = Ref(time_ns())
+
+# A step takes about 1.6 s at 1/6ᵒ. Report the slow ones with their model time, to match them with forcing reloads and output.
+function report_slow_step(sim)
+    elapsed = 1e-9 * (time_ns() - step_clock[])
+    step_clock[] = time_ns()
+    elapsed > 3 && @root @info @sprintf("slow step: iter %d at %s took %.1f s", iteration(sim),
+                                        start_date + Millisecond(round(Int, 1000 * time(sim))), elapsed)
+    return nothing
+end
 const last_progress = Ref((iteration = 0, time = 0.0))
 
 function progress(sim, ice_volume)
