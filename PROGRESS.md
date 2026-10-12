@@ -4,9 +4,9 @@
 
 | | 1/6ᵒ, 1 GPU | 1/12ᵒ, 4 GPUs |
 |---|---|---|
-| Furthest stable run | day 35 at Δt = 20 min | 1 day at Δt = 10 min |
-| SYPD | 2.1 between reloads, **1.95 sustained** (days 30–35, incl. reloads, output, checkpoint) | 0.74 (2.2 s/step), first 100 steps |
-| Largest Δt tried | 20 min; 30 min under test from day 35 | 10 min, from rest (cap) |
+| Furthest stable run | day 45 (Δt = 20 min to day 35, ≤ 30 min after) | 1 day at Δt = 10 min |
+| SYPD | Δt ≤ 20 min: 1.95 sustained. Δt ≤ 30 min: **3.0** at full Δt, ~2.5 averaged (CFL dips) | 0.74 (2.2 s/step), first 100 steps |
+| Largest Δt tried | 30 min stable for 10 days; 45 min under test from day 45 | 10 min, from rest (cap) |
 
 **Open issues**
 - Sea ice reaches 11–13 m in a few enclosed coastal cells.
@@ -17,6 +17,8 @@
 ## Log
 
 **2026-10-12**
+- Δt ≤ 30 min, days 35–45: stable, T in (−2.14, 34.6) ᵒC. 1.64 s/step at 30 min = 3.0 SYPD. The CFL wizard
+  drops Δt to 19–23 min when coastal currents reach 4.2 m/s, so the average is about 2.5 SYPD. Next: Δt ≤ 45 min.
 - 1/6ᵒ days 25–35 in 43 min, stable: T in (−2.34, 34.5) ᵒC, sea ice ≤ 13.5 m, falling to 10.6 m. With #773 and #774:
   JRA55 land 364 → 29 s, ERA5 reloads 33 → 5–11 s after the first. **1.95 SYPD sustained.**
 - Branched a max Δt = 30 min run from the day-35 checkpoint (`sixth_degree_dt30min`), 10 days.
