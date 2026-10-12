@@ -230,7 +230,8 @@ and a checkpoint every 5 days so that a later run with a longer `stop_time` pick
 function global_simulation(model; name, Δt, max_Δt, stop_time, checkpoint_interval = 5days)
     directory = mkpath(joinpath(run_directory, name))
     # Checkpoints do not store Δt. A spun-up state permits `max_Δt`, so a pickup starts there instead of ramping up again.
-    picking_up = any(startswith("checkpoint"), readdir(directory))
+    # The iteration-0 checkpoint is the state at rest, which still needs the ramp.
+    picking_up = any(contains(r"^checkpoint.*_iteration[1-9]"), readdir(directory))
     simulation = Simulation(model; Δt = picking_up ? max_Δt : Δt, stop_time)
 
     wizard = TimeStepWizard(; cfl = 0.5, max_Δt, max_change = 1.05, cell_advection_timescale = horizontal_advection_timescale)
