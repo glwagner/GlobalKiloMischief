@@ -4,18 +4,20 @@
 
 | | 1/6ᵒ, 1 GPU | 1/12ᵒ, 4 GPUs |
 |---|---|---|
-| Furthest stable run | day 15 of the restart with filled pits (30 days before) | 1 day at Δt = 10 min |
-| SYPD | 2.1 between reloads, 1.62 over days 5–15 | 0.74 (2.2 s/step), first 100 steps |
+| Furthest stable run | day 25 of the restart with filled pits | 1 day at Δt = 10 min |
+| SYPD | 2.1 between reloads, 1.62 over days 15–25 (1.83 without the JRA55 stall) | 0.74 (2.2 s/step), first 100 steps |
 | Largest Δt tried | 20 min (cap, not a stability limit) | 10 min, from rest (cap) |
 
 **Open issues**
 - Sea ice reaches 11–13 m in a few enclosed coastal cells.
-- ERA5 reload costs about 25% of throughput (fix now installed, not yet measured in a run).
-- A 1-hour job spends about 21 min before the first step: building the model takes 14 min (61% of it not compiling), the first step 5.6 min.
+- Per-step overheads: ERA5 reload 33 s per 47 h (was 70 s), JRA55 runoff stall ~167 s per ~10 days, daily output 1.8 s, checkpoint 24 s.
+- A 1-hour job spends about 22 min before the first step. Model build 14.4 min, of which JRA55 land is 6.1 min, ERA5 atmosphere 2.2, coupled model 1.5 (compiling); first step 5.7 min.
 
 ## Log
 
 **2026-10-12**
+- 1/6ᵒ days 15–25, stable: T in (−2.23, 33.8) ᵒC, sea ice ≤ 12.7 m. Slow-step log attributes the overheads (status above).
+  A subagent is profiling the JRA55 land build and stall (the 2015 runoff file is only 57 MB, so not I/O).
 - 1/6ᵒ days 5–15 in 48 min, stable: T in (−2.03, 33.3) ᵒC, sea ice up to 13 m (fold/coastal cells again).
   1.62 SYPD over the segment, up from about 1.5. Step times still spike irregularly (one 50-step window cost +125 s, others +25 s).
   Next segment reports each slow step and times each stage of the model build.
