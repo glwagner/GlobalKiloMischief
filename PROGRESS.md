@@ -4,13 +4,14 @@
 
 | | 1/6ᵒ, 1 GPU | 1/12ᵒ, 4 GPUs |
 |---|---|---|
-| Furthest stable run | 30 days at Δt = 20 min (restarting with pits filled) | 1 day at Δt = 10 min |
+| Furthest stable run | day 8 of the restart with filled pits (30 days before) | 1 day at Δt = 10 min |
 | SYPD | 2.05 between ERA5 reloads, about 1.5 including them | 0.74 (2.2 s/step), first 100 steps |
 | Largest Δt tried | 20 min (cap, not a stability limit) | 10 min, from rest (cap) |
 
 **Open issues**
 - Sea ice reaches 11–13 m in a few enclosed coastal cells.
-- ERA5 reload costs about 27% of throughput (fix pinned, not yet measured in a run).
+- ERA5 reload costs about 25% of throughput (fix now installed, not yet measured in a run).
+- A 1-hour job spends about 28 min before the first step (16 min setup, 11 min compiling the first step).
 
 ## Log
 
@@ -19,7 +20,10 @@
   T in (−2.0, 34.8) ᵒC, max|u| 4.2 m/s, 78 GiB per GPU. First step compiles for 19 min.
 - It started at Δt = 10 min from rest, by accident (it treated the iteration-0 checkpoint as a pickup), and held.
   Fixed: only checkpoints past iteration 0 skip the ramp.
-- 1/6ᵒ restart from day 0 with filled pits submitted (10-day interactive segments).
+- 1/6ᵒ restart with filled pits: day 8 in 1 hour, stable. The warm maximum falls from 35.6 ᵒC to 33.2 ᵒC (it rose
+  to 36.8 ᵒC with pits). Minimum −2.03 ᵒC.
+- The ERA5 prefetch (#773) never ran: the manifest kept the previous commit's tree hash, so Julia loaded the old
+  NumericalEarth. Reload steps still cost about 70 s. Reinstalled; next segment measures it.
 
 **2026-10-11**
 - 1/12ᵒ test failed at the first time step after 29 min of setup: the 4 ranks created different numbers of
