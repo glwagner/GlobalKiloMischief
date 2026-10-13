@@ -10,7 +10,7 @@ refine. Runs on NCSA DeltaAI (GH200).
 | `smoke_test.jl` | Full 1/6° configuration, 1 GPU, 300 steps. Downloads and caches all inputs. |
 | `sixth_degree.jl` | 1/6° (2160 × 1020 × 100), 1 GPU |
 | `twelfth_degree.jl` | 1/12° (4320 × 2040 × 100), 4 GPUs on one node (`NCCLDistributed`, `Partition(1, 4)`) |
-| `download_data.jl` | Fetches the forcing for a window on the login node (CPU only) |
+| `download_data.jl` | Fetches the forcing for a window (CPU only; compute nodes reach CDS) |
 | `setup.jl` | Shared grid, model, and simulation constructors |
 
 ## Configuration
@@ -81,7 +81,7 @@ immersed grid) and #180 (CUDA graphs for EVP).
 #   CDSAPI_URL=https://cds.climate.copernicus.eu/api, CDSAPI_KEY=<token>    ERA5 (accept the single-levels licence)
 sbatch slurm/precompile.sbatch
 
-source slurm/env.sh && julia --project download_data.jl 60   # login node: bathymetry + forcing for 60 days
+sbatch slurm/download_data.sbatch 180                        # bathymetry + forcing for 180 days
 sbatch slurm/smoke_test.sbatch
 sbatch slurm/sixth_degree.sbatch 10 20                       # stop_days max_Δt_minutes; rerun with more days to extend
 sbatch slurm/twelfth_degree.sbatch 10 10

@@ -1,5 +1,5 @@
 # Download the ERA5, JRA55, GLORYS, and ETOPO files for a forcing window and cache the regridded bathymetry
-# for both resolutions, without building a model. Runs on the login node (CPU only), so GPU jobs find
+# for both resolutions, without building a model. Run it before the GPU jobs (CPU only), so they find
 # everything cached and the ranks of a distributed run never regrid concurrently.
 #
 #   julia --project download_data.jl [days=30]
