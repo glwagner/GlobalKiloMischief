@@ -4,9 +4,9 @@
 
 | | 1/6ᵒ, 1 GPU | 1/12ᵒ, 4 GPUs |
 |---|---|---|
-| Furthest stable run | day 45 (Δt = 20 min to day 35, ≤ 30 min after) | 1 day at Δt = 10 min |
-| SYPD | Δt ≤ 20 min: 1.95 sustained. Δt ≤ 30 min: **3.0** at full Δt, ~2.5 averaged (CFL dips) | 0.74 (2.2 s/step), first 100 steps |
-| Largest Δt tried | 30 min stable for 10 days; 45 min under test from day 45 | 10 min, from rest (cap) |
+| Furthest stable run | day 55 (Δt ≤ 20 min to day 35, ≤ 30 to day 45, ≤ 45 after) | 1 day at Δt = 10 min |
+| SYPD | Δt ≤ 20 min: 1.95. ≤ 30 min: 2.5. ≤ 45 min: **3.1** (Δt 29–38 min, CFL-limited) | 0.74 (2.2 s/step), first 100 steps |
+| Largest Δt tried | 45 min cap, stable 10 days; CFL (0.5) holds Δt near 35 min | 10 min, from rest (cap) |
 
 **Open issues**
 - Sea ice reaches 11–13 m in a few enclosed coastal cells.
@@ -17,6 +17,9 @@
 ## Log
 
 **2026-10-12**
+- Δt ≤ 45 min, days 45–55: stable, T in (−2.14, 34.6) ᵒC, sea ice up to 14.6 m. The CFL limit keeps Δt at
+  29–38 min; 1.7–1.8 s/step (more barotropic substeps) → 3.1 SYPD. Continuing this as the main run.
+- ERA5 first-window load at startup varies 3–8 min (cold `/work/hdd`).
 - Δt ≤ 30 min, days 35–45: stable, T in (−2.14, 34.6) ᵒC. 1.64 s/step at 30 min = 3.0 SYPD. The CFL wizard
   drops Δt to 19–23 min when coastal currents reach 4.2 m/s, so the average is about 2.5 SYPD. Next: Δt ≤ 45 min.
 - 1/6ᵒ days 25–35 in 43 min, stable: T in (−2.34, 34.5) ᵒC, sea ice ≤ 13.5 m, falling to 10.6 m. With #773 and #774:
