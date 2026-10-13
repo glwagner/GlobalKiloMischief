@@ -20,7 +20,9 @@
 - Fastest currents (day 55): narrow shallow straits one or two cells wide: Bering 2.7 m/s, Karimata (Indonesia) 2.5,
   Belle Isle 2.2, Skagerrak 1.6. Gulf Stream and Florida Current 1.7–1.8 m/s are realistic. These set the CFL limit.
   Next: test `cfl = 0.7` (now a script argument) with max Δt 45 min.
-- ERA5 was cached only to day 61; downloading to day 180 on the login node (CDS) before the next segment.
+- ERA5 was cached only to day 61. The login-node download hit 15.5 GB (CDS sends ~24 days of all variables as one
+  7 GB file, split in memory) and was killed. Compute nodes reach CDS, but the split writes ~1 hourly file/s, so 24 days
+  take ~90 min: now a 4-hour `ghx4` job (`slurm/download_data.sbatch`). Meanwhile, CFL 0.7 test over days 55–59.
 - Δt ≤ 45 min, days 45–55: stable, T in (−2.14, 34.6) ᵒC, sea ice up to 14.6 m. The CFL limit keeps Δt at
   29–38 min; 1.7–1.8 s/step (more barotropic substeps) → 3.1 SYPD. Continuing this as the main run.
 - ERA5 first-window load at startup varies 3–8 min (cold `/work/hdd`).
