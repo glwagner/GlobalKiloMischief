@@ -4,8 +4,8 @@
 
 | | 1/6ᵒ, 1 GPU | 1/12ᵒ, 4 GPUs |
 |---|---|---|
-| Furthest stable run | day 55 (Δt ≤ 20 min to day 35, ≤ 30 to day 45, ≤ 45 after) | 1 day at Δt = 10 min |
-| SYPD | Δt ≤ 20 min: 1.95. ≤ 30 min: 2.5. ≤ 45 min: **3.1** (Δt 29–38 min, CFL-limited) | 0.74 (2.2 s/step), first 100 steps |
+| Furthest stable run | day 74 (Δt ≤ 20 min to day 35, ≤ 30 to 45, ≤ 45 to 55, ≤ 45 at CFL 0.7 after) | 1 day at Δt = 10 min |
+| SYPD | Δt ≤ 20 min: 1.95. ≤ 30: 2.5. ≤ 45: 3.1. ≤ 45 at CFL 0.7: **3.4** (Δt 25–45 min, 1.78 s/step) | 0.74 (2.2 s/step), first 100 steps |
 | Largest Δt tried | 45 min cap: stable 10 days at CFL 0.5 (Δt ≈ 35 min); 4 days at CFL 0.7 (Δt ≈ 44 min) | 10 min, from rest (cap) |
 
 **Open issues**
@@ -17,6 +17,10 @@
 ## Log
 
 **2026-10-13**
+- CFL 0.7, days 55–74: stable, T in (−2.28, 34.8) ᵒC, sea ice ≤ 14.1 m. Δt averages ~37 min, dipping to 25 min when
+  max |u| reaches 4–5 m/s. ~3.4 SYPD. Stopped at day 74 on a truncated ERA5 file (`strd`, 2015-03-17T22) that a killed
+  download job had left. Removed it and an empty one; checkpoint at day 70.
+- Fix: split files now take their final name only when complete (NumericalEarth branch `glw/era5-atomic-split`, testing).
 - CFL 0.7, max Δt 45 min, days 55–59: stable, Δt 41–45 min, ~1.74 s/step → **~4.1 SYPD** (short test, few samples).
 - Startup is growing with `/work/hdd` contention: model build 17 min (ERA5 first window 3 + 3 min), first step 8.8 min.
 - ERA5 split is 100× too slow: CDS chunks span 100 hours and are decompressed once per hourly file (0.96 s vs
