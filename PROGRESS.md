@@ -6,7 +6,7 @@
 |---|---|---|
 | Furthest stable run | day 55 (Δt ≤ 20 min to day 35, ≤ 30 to day 45, ≤ 45 after) | 1 day at Δt = 10 min |
 | SYPD | Δt ≤ 20 min: 1.95. ≤ 30 min: 2.5. ≤ 45 min: **3.1** (Δt 29–38 min, CFL-limited) | 0.74 (2.2 s/step), first 100 steps |
-| Largest Δt tried | 45 min cap, stable 10 days; CFL (0.5) holds Δt near 35 min | 10 min, from rest (cap) |
+| Largest Δt tried | 45 min cap: stable 10 days at CFL 0.5 (Δt ≈ 35 min); 4 days at CFL 0.7 (Δt ≈ 44 min) | 10 min, from rest (cap) |
 
 **Open issues**
 - Sea ice reaches 11–13 m in a few enclosed coastal cells.
@@ -15,6 +15,12 @@
 - A 1-hour job spends about 17 min before the first step: model build 10.4 min (ERA5 first window 2–4.5 min, compilation ~5), grid 1.2, first step 5.6.
 
 ## Log
+
+**2026-10-13**
+- CFL 0.7, max Δt 45 min, days 55–59: stable, Δt 41–45 min, ~1.74 s/step → **~4.1 SYPD** (short test, few samples).
+- Startup is growing with `/work/hdd` contention: model build 17 min (ERA5 first window 3 + 3 min), first step 8.8 min.
+- ERA5 split is 100× too slow: CDS chunks span 100 hours and are decompressed once per hourly file (0.96 s vs
+  0.01 s per hour read in full). Fix on NumericalEarth branch `glw/era5-split-by-chunk`, benchmark pending.
 
 **2026-10-12**
 - Fastest currents (day 55): narrow shallow straits one or two cells wide: Bering 2.7 m/s, Karimata (Indonesia) 2.5,
