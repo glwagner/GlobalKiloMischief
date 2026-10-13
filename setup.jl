@@ -224,19 +224,19 @@ horizontal_advection_timescale(model) =
                                                         w = ZeroField()))
 
 """
-    global_simulation(model; name, Δt, max_Δt, stop_time)
+    global_simulation(model; name, Δt, max_Δt, stop_time, cfl = 0.5)
 
 Coupled simulation with an adaptive time step, a progress message every 50 iterations, daily surface output,
 and a checkpoint every 5 days so that a later run with a longer `stop_time` picks up where this one ended.
 """
-function global_simulation(model; name, Δt, max_Δt, stop_time, checkpoint_interval = 5days)
+function global_simulation(model; name, Δt, max_Δt, stop_time, cfl = 0.5, checkpoint_interval = 5days)
     directory = mkpath(joinpath(run_directory, name))
     # Checkpoints do not store Δt. A spun-up state permits `max_Δt`, so a pickup starts there instead of ramping up again.
     # The iteration-0 checkpoint is the state at rest, which still needs the ramp.
     picking_up = any(contains(r"^checkpoint.*_iteration[1-9]"), readdir(directory))
     simulation = Simulation(model; Δt = picking_up ? max_Δt : Δt, stop_time)
 
-    wizard = TimeStepWizard(; cfl = 0.5, max_Δt, max_change = 1.05, cell_advection_timescale = horizontal_advection_timescale)
+    wizard = TimeStepWizard(; cfl, max_Δt, max_change = 1.05, cell_advection_timescale = horizontal_advection_timescale)
     add_callback!(simulation, wizard, IterationInterval(10))
     # On a distributed tripolar grid, reducing a two-dimensional field builds one more field on the fold rank than on the
     # others, after which halo exchanges no longer match across ranks. So `progress` reduces the interior array instead.
