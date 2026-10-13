@@ -20,7 +20,8 @@
 - CFL 0.7, max Δt 45 min, days 55–59: stable, Δt 41–45 min, ~1.74 s/step → **~4.1 SYPD** (short test, few samples).
 - Startup is growing with `/work/hdd` contention: model build 17 min (ERA5 first window 3 + 3 min), first step 8.8 min.
 - ERA5 split is 100× too slow: CDS chunks span 100 hours and are decompressed once per hourly file (0.96 s vs
-  0.01 s per hour read in full). Fix on NumericalEarth branch `glw/era5-split-by-chunk`, benchmark pending.
+  0.01 s per hour read in full). Fixed: 0.03 s per file, tests pass
+  ([NumericalEarth #776](https://github.com/NumericalEarth/NumericalEarth.jl/pull/776), pinned `82858a6`). Download to day 180 rerunning.
 
 **2026-10-12**
 - Fastest currents (day 55): narrow shallow straits one or two cells wide: Bering 2.7 m/s, Karimata (Indonesia) 2.5,
