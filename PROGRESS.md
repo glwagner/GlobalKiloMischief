@@ -4,7 +4,7 @@
 
 | | 1/6ᵒ, 1 GPU | 1/12ᵒ, 4 GPUs |
 |---|---|---|
-| Furthest stable run | day 85 (Δt ≤ 20 min to day 35, ≤ 30 to 45, ≤ 45 to 55, ≤ 45 at CFL 0.7 after) | 1 day at Δt = 10 min |
+| Furthest stable run | day 104 (Δt ≤ 20 min to day 35, ≤ 30 to 45, ≤ 45 to 55, ≤ 45 at CFL 0.7 after) | 1 day at Δt = 10 min |
 | SYPD | Δt ≤ 20 min: 1.95. ≤ 30: 2.5. ≤ 45: 3.1. ≤ 45 at CFL 0.7: **3.4** (Δt 25–45 min, 1.78 s/step) | 0.74 (2.2 s/step), first 100 steps |
 | Largest Δt tried | 45 min cap: stable 10 days at CFL 0.5 (Δt ≈ 35 min); 4 days at CFL 0.7 (Δt ≈ 44 min) | 10 min, from rest (cap) |
 
@@ -17,6 +17,9 @@
 ## Log
 
 **2026-10-14**
+- Days 85–104 stable, mostly at Δt = 45 min (1.7–1.9 s/step); T in (−2.34, 35.1) ᵒC; sea ice up to 17.3 m.
+  Stopped at day 104 on another file a killed download left (u10 2015-04-15T03: full size, data unreadable).
+  Fix: [NumericalEarth #779](https://github.com/NumericalEarth/NumericalEarth.jl/pull/779) writes `.partial` then renames; pinned `3a1ee30`.
 - CFL 0.7, days 70–85: stable, T in (−2.47, 34.9) ᵒC; sea ice spiked to 18.6 m for a day, back to 13.5 m. Δt 27–45 min.
 - Forcing downloads and run segments now alternate in the interactive slot, chained by `logs/download_then_run.sh`.
 
