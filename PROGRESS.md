@@ -4,7 +4,7 @@
 
 | | 1/6ᵒ, 1 GPU | 1/12ᵒ, 4 GPUs |
 |---|---|---|
-| Furthest stable run | day 104 (Δt ≤ 20 min to day 35, ≤ 30 to 45, ≤ 45 to 55, ≤ 45 at CFL 0.7 after) | 1 day at Δt = 10 min |
+| Furthest stable run | day 114 (Δt ≤ 20 min to day 35, ≤ 30 to 45, ≤ 45 to 55, ≤ 45 at CFL 0.7 after) | 1 day at Δt = 10 min |
 | SYPD | Δt ≤ 20 min: 1.95. ≤ 30: 2.5. ≤ 45: 3.1. ≤ 45 at CFL 0.7: **3.4** (Δt 25–45 min, 1.78 s/step) | 0.74 (2.2 s/step), first 100 steps |
 | Largest Δt tried | 45 min cap: stable 10 days at CFL 0.5 (Δt ≈ 35 min); 4 days at CFL 0.7 (Δt ≈ 44 min) | 10 min, from rest (cap) |
 
@@ -17,6 +17,12 @@
 ## Log
 
 **2026-10-14**
+- Days 100–114 stable at Δt ≈ 45 min. Tmax 35.8 ᵒC, sea ice up to 25.5 m. Day-110 checkpoint shows the warm
+  cells are shallow (10–20 m) dead-end bottom cells, walled on three sides, in Sumatra (35.6 ᵒC), the Gulf of
+  Martaban (35.1 ᵒC) and Flores: little exchange plus bottom-absorbed shortwave, like the pits. Possible fix: raise
+  each column to its second-deepest neighbor, so every cell has two open sides. Not applied (changes the grid).
+  Thickest ice: one 20 m coastal cell at the Filchner front (−40ᵒ, −78ᵒ).
+- Download job segfaulted in `nc_close` after ~2000 files; its `.partial` file was discarded, no corrupt files.
 - Days 85–104 stable, mostly at Δt = 45 min (1.7–1.9 s/step); T in (−2.34, 35.1) ᵒC; sea ice up to 17.3 m.
   Stopped at day 104 on another file a killed download left (u10 2015-04-15T03: full size, data unreadable).
   Fix: [NumericalEarth #779](https://github.com/NumericalEarth/NumericalEarth.jl/pull/779) writes `.partial` then renames; pinned `3a1ee30`.
