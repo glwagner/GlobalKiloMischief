@@ -4,7 +4,7 @@
 
 | | 1/6ᵒ, 1 GPU | 1/12ᵒ, 4 GPUs |
 |---|---|---|
-| Furthest stable run | day 74 (Δt ≤ 20 min to day 35, ≤ 30 to 45, ≤ 45 to 55, ≤ 45 at CFL 0.7 after) | 1 day at Δt = 10 min |
+| Furthest stable run | day 85 (Δt ≤ 20 min to day 35, ≤ 30 to 45, ≤ 45 to 55, ≤ 45 at CFL 0.7 after) | 1 day at Δt = 10 min |
 | SYPD | Δt ≤ 20 min: 1.95. ≤ 30: 2.5. ≤ 45: 3.1. ≤ 45 at CFL 0.7: **3.4** (Δt 25–45 min, 1.78 s/step) | 0.74 (2.2 s/step), first 100 steps |
 | Largest Δt tried | 45 min cap: stable 10 days at CFL 0.5 (Δt ≈ 35 min); 4 days at CFL 0.7 (Δt ≈ 44 min) | 10 min, from rest (cap) |
 
@@ -15,6 +15,10 @@
 - A 1-hour job spends about 17 min before the first step: model build 10.4 min (ERA5 first window 2–4.5 min, compilation ~5), grid 1.2, first step 5.6.
 
 ## Log
+
+**2026-10-14**
+- CFL 0.7, days 70–85: stable, T in (−2.47, 34.9) ᵒC; sea ice spiked to 18.6 m for a day, back to 13.5 m. Δt 27–45 min.
+- Forcing downloads and run segments now alternate in the interactive slot, chained by `logs/download_then_run.sh`.
 
 **2026-10-13**
 - CFL 0.7, days 55–74: stable, T in (−2.28, 34.8) ᵒC, sea ice ≤ 14.1 m. Δt averages ~37 min, dipping to 25 min when
