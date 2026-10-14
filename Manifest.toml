@@ -1079,8 +1079,8 @@ version = "1.3.0"
 
 [[deps.NumericalEarth]]
 deps = ["Accessors", "Adapt", "CFTime", "ClimaSeaIce", "CubedSphere", "DataDeps", "Dates", "Distances", "DocStringExtensions", "Downloads", "GPUArraysCore", "Glob", "ImageMorphology", "JLD2", "KernelAbstractions", "LibCURL", "MeshArrays", "NCDatasets", "NetworkOptions", "Oceananigans", "OffsetArrays", "PrecompileTools", "Printf", "Scratch", "SeawaterPolynomials", "StaticArrays", "Statistics", "Thermodynamics", "ZipFile"]
-git-tree-sha1 = "7f9496fabff754f270c18d94a5d624ef9fb85b2d"
-repo-rev = "82858a6ca4f10a09717e387d5465713202b06127"
+git-tree-sha1 = "88d8f115104c07c5832154c75c36e128b7181a45"
+repo-rev = "3a1ee3033c8d9214755162598636e0640b001a23"
 repo-url = "https://github.com/NumericalEarth/NumericalEarth.jl"
 uuid = "904d977b-046a-4731-8b86-9235c0d1ef02"
 version = "0.8.2"

@@ -50,7 +50,7 @@ refine. Runs on NCSA DeltaAI (GH200).
 Julia ≥ 1.12.3 is required: earlier versions assume 4 KiB pages on aarch64, and JLD2's memory-mapped writes then
 fail on DeltaAI's 64 KiB pages (`SystemError("msync", 22)`, JLD2 #702).
 
-`Project.toml` pins NumericalEarth at `82858a6` (branch `glw/global-kilo-mischief`), which is `main` plus seven open PRs:
+`Project.toml` pins NumericalEarth at `3a1ee30` (branch `glw/global-kilo-mischief`), which is `main` plus eight open PRs:
 
 - #742: fixes GLORYS inpainting. Deep levels and land were left at zero, and atoll columns got surface water copied down to the seafloor.
 - #743: lets ERA5 supply mean sea level pressure instead of surface pressure.
@@ -61,6 +61,7 @@ fail on DeltaAI's 64 KiB pages (`SystemError("msync", 22)`, JLD2 #702).
   cutting a 48-hour reload from about 70 s in a run.
 - #774: searches river-mouth target cells within a latitude band, cutting `JRA55PrescribedLand` at 1/6° from 364 s to 31 s.
 - #776: reads each ERA5 variable once when splitting a CDS response into hourly files (0.96 s → 0.03 s per file).
+- #779: gives split ERA5 files their final name only once complete, so a killed download cannot leave a corrupt file.
 
 Oceananigans is pinned at `66e3dda` (branch `glw/v0.113.6-north-fold`): the v0.113.6 release plus #6208, which
 drops duplicated north-fold work for y-partitioned distributed tripolar grids, as in the 4-GPU `Partition(1, 4)` run.
