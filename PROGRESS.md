@@ -17,6 +17,12 @@
 ## Log
 
 **2026-10-15**
+- Restarting both runs with dead ends filled (each column raised to its second-deepest neighbor, so every cell has
+  two open sides). Basins checked: Mediterranean, Gibraltar (280 m), Red Sea, Persian Gulf, Baltic stay open. The
+  145-day run is archived as `sixth_degree_dt45min_cfl0.7_pits`.
+- 1/12ᵒ never started on `ghx4` (5 days pending: ~2400 jobs queued, low fair share, whole-node request). It now
+  alternates with 1/6ᵒ in the interactive partition: 1/6ᵒ 1-hour segments (CFL 0.7, Δt ≤ 45 min), 1/12ᵒ 2-hour
+  4-GPU segments (CFL 0.7, Δt ≤ 20 min), 10 days each, via `logs/segments.sh`.
 - Days 110–140 stable (three segments): Δt 23–45 min, T in (−2.03, 35.7) ᵒC, sea ice back to ~16 m.
 - Segment ends now fall on the 5-day checkpoints, so no simulated days are redone.
 - A download failed opening a corrupt file inside the CDS zip (HDF error): transient, retried.
