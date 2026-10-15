@@ -96,22 +96,26 @@ function connect_basins!(bottom_height, from, to; depth)
 end
 
 """
-    fill_pits!(bottom_height)
+    fill_dead_ends!(bottom_height)
 
-Raise every ocean column that is deeper than all four of its neighbors to the depth of its deepest neighbor, until
-no such pit is left, and return the number of raises. A pit exchanges water only through its top, so shortwave
-radiation absorbed at the seafloor accumulates in it: shallow pits at the Amazon mouth heated to 37 ᵒC in 30 days.
+Raise every ocean column that is deeper than all but one of its four neighbors to the depth of its second-deepest
+neighbor, until every cell has at least two open sides at every level, and return the number of raises. A dead-end
+cell exchanges water through one side only, so shortwave radiation absorbed at the seafloor accumulates in it:
+pits at the Amazon mouth heated to 37 ᵒC in 30 days, and one-cell inlets on Sumatra and in the Gulf of Martaban
+to 35.8 ᵒC. A one-cell inlet fills in from its closed end; a one-cell channel keeps its two open ends.
 """
-function fill_pits!(bottom_height)
+function fill_dead_ends!(bottom_height)
     zb = view(interior(bottom_height), :, :, 1)
     Nx, Ny = size(zb)
     filled = 0
     while true
         raised = 0
         for j in 2:Ny-1, i in 1:Nx
-            deepest_neighbor = min(zb[mod1(i - 1, Nx), j], zb[mod1(i + 1, Nx), j], zb[i, j - 1], zb[i, j + 1])
-            if zb[i, j] < deepest_neighbor
-                zb[i, j] = deepest_neighbor
+            deeper_x, shallower_x = minmax(zb[mod1(i - 1, Nx), j], zb[mod1(i + 1, Nx), j])
+            deeper_y, shallower_y = minmax(zb[i, j - 1], zb[i, j + 1])
+            second_deepest_neighbor = min(max(deeper_x, deeper_y), min(shallower_x, shallower_y))
+            if zb[i, j] < second_deepest_neighbor
+                zb[i, j] = second_deepest_neighbor
                 raised += 1
             end
         end
@@ -138,9 +142,9 @@ function global_bottom_height(Nx, Ny; halo, gibraltar_sill_depth = 280)
     deepened = connect_basins!(bottom_height, gulf_of_cadiz, alboran_sea; depth = gibraltar_sill_depth)
     deepened > 0 && @info "Opened the Strait of Gibraltar on the $Nx × $Ny grid by deepening $deepened cells"
 
+    filled = fill_dead_ends!(bottom_height)
+    @info "Filled the dead ends of the $Nx × $Ny grid ($filled raises)"
     NumericalEarth.Bathymetry.remove_minor_basins!(bottom_height, 1)
-    filled = fill_pits!(bottom_height)
-    @info "Filled the pits of the $Nx × $Ny grid ($filled raises)"
 
     return bottom_height
 end

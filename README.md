@@ -21,6 +21,8 @@ refine. Runs on NCSA DeltaAI (GH200).
   the Mediterranean: if the Gulf of Cádiz and the Alboran Sea fall in different basins, it deepens to the 280 m
   Camarinal Sill the cells along the least-deepening, face-connected path between them. In practice the strait is
   closed at 1°, 1/3° and 1/6° (2–4 cells deepened) and already open at 1/2°, 1/4° and 1/12°.
+  Dead ends are filled: each column is raised to the depth of its second-deepest neighbor until every cell has at
+  least two open sides, since seafloor-absorbed shortwave heated one-sided cells (pits, one-cell inlets) to 35–37 ᵒC.
 - **Ocean**: `ocean_simulation` defaults: `WENOVectorInvariant` momentum, `WENO(order=7)` tracers (both
   vertically implicit where the vertical CFL exceeds 0.5), `CATKEVerticalDiffusivity`, `SplitRungeKutta3`,
   `SplitExplicitFreeSurface` with a substep count sized for `max_Δt`. No GM, no horizontal viscosity. One change:
