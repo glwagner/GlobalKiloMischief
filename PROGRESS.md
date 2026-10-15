@@ -4,7 +4,7 @@
 
 | | 1/6ᵒ, 1 GPU | 1/12ᵒ, 4 GPUs |
 |---|---|---|
-| Furthest stable run | day 114 (Δt ≤ 20 min to day 35, ≤ 30 to 45, ≤ 45 to 55, ≤ 45 at CFL 0.7 after) | 1 day at Δt = 10 min |
+| Furthest stable run | day 140 (Δt ≤ 20 min to day 35, ≤ 30 to 45, ≤ 45 to 55, ≤ 45 at CFL 0.7 after) | 1 day at Δt = 10 min |
 | SYPD | Δt ≤ 20 min: 1.95. ≤ 30: 2.5. ≤ 45: 3.1. ≤ 45 at CFL 0.7: **3.4** (Δt 25–45 min, 1.78 s/step) | 0.74 (2.2 s/step), first 100 steps |
 | Largest Δt tried | 45 min cap: stable 10 days at CFL 0.5 (Δt ≈ 35 min); 4 days at CFL 0.7 (Δt ≈ 44 min) | 10 min, from rest (cap) |
 
@@ -15,6 +15,11 @@
 - A 1-hour job spends about 17 min before the first step: model build 10.4 min (ERA5 first window 2–4.5 min, compilation ~5), grid 1.2, first step 5.6.
 
 ## Log
+
+**2026-10-15**
+- Days 110–140 stable (three segments): Δt 23–45 min, T in (−2.03, 35.7) ᵒC, sea ice back to ~16 m.
+- Segment ends now fall on the 5-day checkpoints, so no simulated days are redone.
+- A download failed opening a corrupt file inside the CDS zip (HDF error): transient, retried.
 
 **2026-10-14**
 - Days 100–114 stable at Δt ≈ 45 min. Tmax 35.8 ᵒC, sea ice up to 25.5 m. Day-110 checkpoint shows the warm
