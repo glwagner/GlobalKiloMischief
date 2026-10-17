@@ -151,13 +151,14 @@ end
 
 """
     global_grid(arch; cells_per_degree, Nz = 100, depth = 6000)
+    global_grid(arch; Nx, Ny, Nz = 100, depth = 6000)
 
-Tripolar grid from 80°S to the north pole at `1/cells_per_degree` degree resolution, with `Nz` z⋆ levels
-(1.4 m at the surface, 320 m at 6000 m depth) and ETOPO2022 bathymetry (see [`global_bottom_height`](@ref)).
+Tripolar grid from 80°S to the north pole at `1/cells_per_degree` degree resolution, or with `Nx × Ny` horizontal
+cells, with `Nz` z⋆ levels (1.4 m at the surface, 320 m at 6000 m depth) and ETOPO2022 bathymetry
+(see [`global_bottom_height`](@ref)).
 """
-function global_grid(arch; cells_per_degree, Nz = 100, depth = 6000, halo = (7, 7, 4))
-    Nx = 360 * cells_per_degree
-    Ny = 170 * cells_per_degree
+function global_grid(arch; cells_per_degree = nothing, Nx = 360 * cells_per_degree, Ny = 170 * cells_per_degree,
+                     Nz = 100, depth = 6000, halo = (7, 7, 4))
     z = ExponentialDiscretization(Nz, -depth, 0; scale = 1100, mutable = true)
     underlying_grid = TripolarGrid(arch; size = (Nx, Ny, Nz), halo, z)
 
@@ -297,8 +298,10 @@ function progress(sim, ice_volume)
     simulated = time(sim) - last_progress[].time
     sypd = simulated / elapsed / 365  # simulated days per wall-clock second / 365 = simulated years per day
 
-    msg = @sprintf("%s (iter %d), Δt: %s, wall/step: %s, SYPD: %.2f", Date(start_date + Millisecond(round(Int, 1000 * time(sim)))),
-                   iteration(sim), prettytime(sim.Δt), prettytime(elapsed / max(steps, 1)), sypd)
+    # The horizontal advective CFL that the time step wizard limits
+    cfl = all_reduce(max, CFL(sim.Δt, horizontal_advection_timescale)(sim.model), architecture(ocean.grid))
+    msg = @sprintf("%s (iter %d), Δt: %s, CFL: %.2f, wall/step: %s, SYPD: %.2f", Date(start_date + Millisecond(round(Int, 1000 * time(sim)))),
+                   iteration(sim), prettytime(sim.Δt), cfl, prettytime(elapsed / max(steps, 1)), sypd)
     msg *= @sprintf(", max|u|: (%.2f, %.2f, %.1e) m s⁻¹", maximum(abs, u), maximum(abs, v), maximum(abs, w))
     msg *= @sprintf(", extrema(T): (%.2f, %.2f) ᵒC, max(e): %.1e m² s⁻², max(hᵢℵ): %.2f m",
                     minimum(T), maximum(T), maximum(e), all_reduce(max, maximum(interior(compute!(ice_volume))), architecture(ice_volume)))
