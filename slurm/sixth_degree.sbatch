@@ -12,4 +12,5 @@
 
 #   sbatch slurm/sixth_degree.sbatch [args...]
 source slurm/env.sh
+source slurm/stage_inputs.sh ${1:-30}  # stop_days
 julia --project=. sixth_degree.jl "$@"

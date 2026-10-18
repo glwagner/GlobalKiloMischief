@@ -12,6 +12,7 @@
 
 #   sbatch slurm/twelfth_degree.sbatch [stop_days] [max_Δt_minutes]
 source slurm/env.sh
+source slurm/stage_inputs.sh ${1:-30}  # stop_days
 # Precompile once before launching ranks, which would otherwise race on the shared depot.
 julia --project=. -e 'using Pkg; Pkg.precompile()'
 # One node: MPI launches ranks and reduces scalars over shared memory, NCCL moves the GPU halos.

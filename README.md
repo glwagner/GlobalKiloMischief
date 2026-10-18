@@ -81,6 +81,9 @@ Caveats:
   them by raising `max_Δt` until a run fails. Each `max_Δt` writes to its own run directory.
 - **Throughput**: every 50 steps the log reports Δt, wall time per step, and SYPD (simulated years per wall-clock
   day) over those steps, together with extrema and GPU memory.
+- **Inputs**: each run job first stages what it reads onto `/work/nvme` (`slurm/stage_inputs.sh`): the GLORYS initial
+  condition, 2015 JRA55 runoff, the bathymetry cache, and the segment's ERA5 hours, with symlinks to `/work/hdd` for
+  everything else (about 20 GB). Cold reads from `/work/hdd` made the model build take up to 27 minutes.
 - **Output** (`$RUN_DIRECTORY/<name>/`, on `/work/nvme`): daily surface T, S, e, u, v, w; η; sea ice h, ℵ, u, v. Checkpoints every
   5 simulated days, so 1-hour interactive jobs of 5 days each can be chained. Each run picks up from the latest checkpoint, so you extend a run by resubmitting with a
   larger `stop_days`.
