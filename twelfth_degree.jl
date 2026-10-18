@@ -5,6 +5,7 @@
 #   mpiexec -n 4 julia --project twelfth_degree.jl [stop_days=30] [max_Δt_minutes=10] [cfl=0.5]
 
 using MPI
+using Profile  # a SIGUSR1 then prints where every thread is
 using NCCL
 using Oceananigans.DistributedComputations: NCCLDistributed
 
