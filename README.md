@@ -29,6 +29,15 @@ refine. Runs on NCSA DeltaAI (GH200).
   (2.34–2.82 s), so NCCL is 13% faster and steadier. Cray MPICH works only with CUDA.jl's memory pool turned off
   (`JULIA_CUDA_MEMORY_POOL=none`: GTL's CUDA IPC cannot export pool memory); the pool makes no difference to NCCL.
 - **Startup:** about 27 minutes per job, mostly slow reads from `/work/hdd`.
+- **Weak scaling, 1 → 2 nodes (2026-10-18):** 1/12° (4320 × 2040) on 4 GPUs against 6120 × 2880 (≈ 1/17°) on 8 GPUs,
+  same cells per GPU, Δt scaled with grid spacing (10 → 7 min), 160 steps:
+
+  | Backend | 1 node, 4 GPUs | 2 nodes, 8 GPUs | Efficiency |
+  |---|---|---|---|
+  | NCCL (libfabric over Slingshot `cxi`, GPU Direct RDMA) | 2.19 s | 2.70 s (±3 ms) | **81%** |
+  | Cray MPICH (CUDA-aware, memory pool off) | 2.53 s | 2.99 s (2.80–3.32) | 85% |
+
+  1 GPU → 8 GPUs (1/6° → 1/17°) is 1.57 → 2.70 s/step, 58% overall. GPU memory reaches 82–91 GiB of 96 at 2.2M columns per GPU.
 
 ### Estimate: 1/48° on 64 GH200 (16 nodes)
 
@@ -42,14 +51,17 @@ refine. Runs on NCSA DeltaAI (GH200).
 | Assumption | Step time | SYPD |
 |---|---|---|
 | 90% efficiency, Δt 3.5–5 min | 1.95 s | 0.29–0.42 |
-| 71% efficiency (measured on-node), Δt 4.6 min | 2.46 s | ~0.31 |
+| Measured 8-GPU step time (2.70 s, 58% from 1 GPU), Δt 4.6 min | 2.7–3.0 s | **~0.25–0.28** |
+
+The measured row assumes step time stops growing past 2 nodes: with a y partition each GPU exchanges halos with
+two neighbors however many GPUs there are. An 8 × 8 partition has four neighbors per GPU, so it may cost more.
 
 Caveats:
 
 - **Sea-ice halos:** the sea-ice solver needs 243-row halos. A 64-way split in y alone leaves too few rows per GPU, so it
   needs an 8 × 8 split in x and y (or less wide halos). It hasn't been verified that `TripolarGrid` supports a
   two-dimensional split.
-- **Unmeasured:** cross-node efficiency awaits the 2-node benchmark.
+- **Unmeasured:** scaling beyond 2 nodes.
 
 ## Configuration
 
