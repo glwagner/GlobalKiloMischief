@@ -25,8 +25,9 @@ refine. Runs on NCSA DeltaAI (GH200).
 - **1/6° stability:** 145 simulated days, stable. That run is now restarting with the corrected bathymetry.
 - **1/12° status:** Δt above 10 minutes hasn't been tested yet, so the 20-minute row is a projection.
 - **Weak scaling, 1 → 4 GPUs (on one node):** 71% efficiency per step, comparing 1/6° on 1 GPU with 1/12° on 4 GPUs.
-- **MPI vs NCCL:** Cray MPICH works only with CUDA.jl's memory pool turned off (`JULIA_CUDA_MEMORY_POOL=none`). Raw
-  GPU-to-GPU transfers then run at 111–116 GB/s, against 101 GB/s for NCCL. The full-model MPI timing is still queued.
+- **MPI vs NCCL (1/12°, 4 GPUs, Δt = 10 min, 150 steps):** NCCL 2.19 s/step (±1 ms); CUDA-aware Cray MPICH 2.53 s/step
+  (2.34–2.82 s), so NCCL is 13% faster and steadier. Cray MPICH works only with CUDA.jl's memory pool turned off
+  (`JULIA_CUDA_MEMORY_POOL=none`: GTL's CUDA IPC cannot export pool memory); the pool makes no difference to NCCL.
 - **Startup:** about 27 minutes per job, mostly slow reads from `/work/hdd`.
 
 ### Estimate: 1/48° on 64 GH200 (16 nodes)
