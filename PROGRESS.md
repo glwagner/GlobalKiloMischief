@@ -16,6 +16,13 @@
 
 ## Log
 
+**2026-10-17**
+- MPI vs NCCL, 1/12ᵒ on 4 GPUs, Δt = 10 min, 150 steps: NCCL 2.19 s/step (±1 ms), CUDA-aware Cray MPICH 2.53 s/step
+  (2.34–2.82). Cray MPICH needs `JULIA_CUDA_MEMORY_POOL=none` (GTL's CUDA IPC cannot export pool memory).
+- DeltaAI lost ~80 nodes to "Kill task failed" drains while `/work/hdd` hung; recovered by 2026-10-17 evening.
+- Inputs are now staged on `/work/nvme` at the start of each run job (`slurm/stage_inputs.sh`, ~20 GB).
+- 2-node weak-scaling benchmark (≈1/17ᵒ on 8 GPUs, NCCL with aws-ofi and MPI) queued; production loop restarts after it.
+
 **2026-10-15**
 - Restarting both runs with dead ends filled (each column raised to its second-deepest neighbor, so every cell has
   two open sides). Basins checked: Mediterranean, Gibraltar (280 m), Red Sea, Persian Gulf, Baltic stay open. The
