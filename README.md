@@ -13,6 +13,43 @@ refine. Runs on NCSA DeltaAI (GH200).
 | `download_data.jl` | Fetches the forcing for a window (CPU only; compute nodes reach CDS) |
 | `setup.jl` | Shared grid, model, and simulation constructors |
 
+## Results so far (2026-10-17)
+
+| Config | Hardware | Δt | Step time | Throughput |
+|---|---|---|---|---|
+| 1/6° | 1 GH200 | ≤ 20 min | 1.57 s | 1.95 SYPD |
+| 1/6° | 1 GH200 | ≤ 45 min, CFL 0.7 (avg ~37 min) | 1.7–1.8 s | **~3.4 SYPD** |
+| 1/12° | 4 GH200 (1 node, NCCL) | 10 min (set limit) | 2.20 s (±1 ms) | 0.74 SYPD |
+| 1/12° | 4 GH200 | ~20 min (projected) | ~2.2–2.3 s | ~1.3–1.5 SYPD |
+
+- **1/6° stability:** 145 simulated days, stable. That run is now restarting with the corrected bathymetry.
+- **1/12° status:** Δt above 10 minutes hasn't been tested yet, so the 20-minute row is a projection.
+- **Weak scaling, 1 → 4 GPUs (on one node):** 71% efficiency per step, comparing 1/6° on 1 GPU with 1/12° on 4 GPUs.
+- **MPI vs NCCL:** Cray MPICH works only with CUDA.jl's memory pool turned off (`JULIA_CUDA_MEMORY_POOL=none`). Raw
+  GPU-to-GPU transfers then run at 111–116 GB/s, against 101 GB/s for NCCL. The full-model MPI timing is still queued.
+- **Startup:** about 27 minutes per job, mostly slow reads from `/work/hdd`.
+
+### Estimate: 1/48° on 64 GH200 (16 nodes)
+
+- **Grid:** 17280 × 8160 × 100, about 14 billion cells. That's 2.2M columns per GPU, the same load per GPU as 1/6° on one GPU.
+- **Step time:** 1/6° at matching substep counts runs about 1.75 s per step. At an expected 90% scaling efficiency,
+  1/48° takes ~1.95 s per step.
+- **Δt:** the advective CFL limit scales with grid spacing, so 37 min / 8 gives about 4.6 min (276 s).
+- **Throughput:** 276 s / 1.95 s / 365 ≈ 0.39 SYPD. Reloads, output and checkpoints cost about 5–10% more, so
+  **~0.35–0.37 SYPD**, about 4.3 simulated months per day.
+
+| Assumption | Step time | SYPD |
+|---|---|---|
+| 90% efficiency, Δt 3.5–5 min | 1.95 s | 0.29–0.42 |
+| 71% efficiency (measured on-node), Δt 4.6 min | 2.46 s | ~0.31 |
+
+Caveats:
+
+- **Sea-ice halos:** the sea-ice solver needs 243-row halos. A 64-way split in y alone leaves too few rows per GPU, so it
+  needs an 8 × 8 split in x and y (or less wide halos). It hasn't been verified that `TripolarGrid` supports a
+  two-dimensional split.
+- **Unmeasured:** cross-node efficiency awaits the 2-node benchmark.
+
 ## Configuration
 
 - **Grid**: `TripolarGrid` from 80°S, 100 z⋆ levels (1.4 m at the surface, 320 m at 6000 m), ETOPO2022 bathymetry
