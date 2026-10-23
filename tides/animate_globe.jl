@@ -69,9 +69,9 @@ mesh!(ax, vertices, faces; color = colors, shading = NoShading)
 Colorbar(fig[2, 1]; colormap, colorrange, vertical = false, width = Relative(0.6),
          labelcolor = :white, ticklabelcolor = :white, label = labels[field_name])
 
-cam3d!(ax.scene)
+cam3d!(ax.scene; center = false) # otherwise the camera refits the scene and ignores the eye position
 function look_from!(λ, φ)
-    eye = 2.3 .* Vec3f(cosd(φ) * cosd(λ), cosd(φ) * sind(λ), sind(φ))
+    eye = 2.9 .* Vec3f(cosd(φ) * cosd(λ), cosd(φ) * sind(λ), sind(φ))
     update_cam!(ax.scene, eye, Vec3f(0, 0, 0), Vec3f(0, 0, 1))
 end
 
