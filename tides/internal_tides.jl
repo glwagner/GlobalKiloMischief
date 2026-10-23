@@ -62,7 +62,8 @@ Tᵢ(x, y, z) = N₀^2 * d / 2 * exp(2z / d) / (g * α)
 
 Φ = Tidejinks.TidalPotential(grid, (start_date, end_date); reference_frame = "IAU_EARTH")
 equation_of_state = LinearEquationOfState(thermal_expansion = α, haline_contraction = 0)
-vertical_closure = VerticalScalarDiffusivity(VerticallyImplicitTimeDiscretization(); ν = 1e-4, κ = 1e-5)
+# CATKE mixes the bottom boundary layer, so that bottom drag reaches the whole column on shelves.
+vertical_closure = NumericalEarth.Oceans.default_ocean_closure()
 
 # Biharmonic viscosity ν = Az² / τ removes the internal-tide energy that cascades to the grid scale. With the default
 # τ = 30 days, waves two cells long decay in about 7 hours.
@@ -74,7 +75,9 @@ closure = (vertical_closure, HorizontalScalarBiharmonicDiffusivity(; ν))
 momentum_advection = get(ENV, "MOMENTUM_ADVECTION", "default") == "none" ? nothing : WENOVectorInvariant()
 free_surface = NumericalEarth.Oceans.default_free_surface(grid; fixed_Δt = Δt)
 
+bottom_drag_coefficient = parse(Float64, get(ENV, "BOTTOM_DRAG_COEFFICIENT", "0.003"))
 ocean = ocean_simulation(grid; Δt, free_surface, barotropic_potential = Φ, closure, equation_of_state, momentum_advection,
+                         bottom_drag_coefficient,
                          radiative_forcing = nothing, gravitational_acceleration = g, stop_time = stop_days * days)
 set!(ocean.model, T = Tᵢ, S = 35)
 
