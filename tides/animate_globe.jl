@@ -1,14 +1,16 @@
 # Animate an hourly horizontal slice on the sphere, drawing each tripolar cell as a quadrilateral between its four
-# corner (Face, Face) nodes and coloring it by the cell's value. The color range is the 99th percentile of |value|
-# over ocean cells in the last frame.
+# corner (Face, Face) nodes and coloring it by the cell's value, over a gray sphere for land. The color range is set by
+# the PERCENTILE-th percentile (default 99) of |value| over ocean cells in the last frame.
 #
 #   julia --project animate_globe.jl <run> <field: η | ζ | w> <first day> <last day>
 
 using Oceananigans
 using Oceananigans.Grids: λnode, φnode
 using Oceananigans.ImmersedBoundaries: immersed_cell
-using CairoMakie
-using CairoMakie.GeometryBasics: Point3f, GLTriangleFace
+# MAKIE_BACKEND=GLMakie renders on the GPU where there is a display; CairoMakie works headless.
+const backend = get(ENV, "MAKIE_BACKEND", "CairoMakie")
+@eval using $(Symbol(backend))
+@eval using $(Symbol(backend)).GeometryBasics: Point3f, GLTriangleFace, Sphere
 using Printf
 
 run_name, field_name = ARGS[1], ARGS[2]
@@ -27,8 +29,8 @@ function on_sphere(i, j)
     return Point3f(cos(φ) * cos(λ), cos(φ) * sin(λ), sin(φ))
 end
 
-# Four vertices per cell, so that each cell is colored by its own value; Makie draws each quadrilateral as two triangles
-cells = [(i, j) for j in 1:Ny for i in 1:Nx]
+# Four vertices per ocean cell, so that each cell is colored by its own value; Makie draws each quadrilateral as two triangles
+cells = [(i, j) for j in 1:Ny for i in 1:Nx if wet[i, j]]
 vertices = Point3f[]
 for (i, j) in cells
     append!(vertices, (on_sphere(i, j), on_sphere(i + 1, j), on_sphere(i + 1, j + 1), on_sphere(i, j + 1)))
@@ -44,11 +46,11 @@ frames = filter(n -> n - window ≥ 1 && n + window ≤ length(c.times), frames)
 slice(n) = Array(interior(c[n], :, :, 1))
 function cell_values(n)
     s = high_pass ? slice(n) .- sum(slice, n-window:n+window) ./ (2window + 1) : slice(n)
-    return [wet[i, j] ? s[i, j] : NaN32 for (i, j) in cells]
+    return [s[i, j] for (i, j) in cells]
 end
 
-ocean_values = sort(abs.(filter(!isnan, cell_values(last(frames)))))
-limit = ocean_values[ceil(Int, 0.99 * length(ocean_values))]
+ocean_values = sort(abs.(cell_values(last(frames))))
+limit = ocean_values[ceil(Int, parse(Float64, get(ENV, "PERCENTILE", "99")) / 100 * length(ocean_values))]
 colorrange = (-limit, limit)
 
 n = Observable(first(frames))
@@ -58,7 +60,8 @@ title = @lift @sprintf("%s%s, day %.2f", labels[field_name], high_pass ? ", minu
 fig = Figure(size = (900, 900), backgroundcolor = :black)
 Label(fig[0, 1], title; color = :white, fontsize = 22, tellwidth = false)
 ax = LScene(fig[1, 1]; show_axis = false)
-mesh!(ax, vertices, faces; color = colors, colormap = :balance, colorrange, nan_color = :gray30, shading = NoShading)
+mesh!(ax, Sphere(Point3f(0), 0.999f0); color = :gray30, shading = NoShading)
+mesh!(ax, vertices, faces; color = colors, colormap = :balance, colorrange, shading = NoShading)
 Colorbar(fig[2, 1]; colormap = :balance, colorrange, vertical = false, width = Relative(0.6),
          labelcolor = :white, ticklabelcolor = :white, label = labels[field_name])
 
