@@ -1,6 +1,6 @@
 # Animate an hourly horizontal slice on the sphere, drawing each tripolar cell as a quadrilateral between its four
-# corner (Face, Face) nodes and coloring it by the cell's value, over a gray sphere for land. The color range is set by
-# the PERCENTILE-th percentile (default 99) of |value| over ocean cells in the last frame.
+# corner (Face, Face) nodes and coloring it by the cell's value, or gray for land. The color range is set by the
+# PERCENTILE-th percentile (default 99) of |value| over ocean cells in the last frame.
 #
 #   julia --project animate_globe.jl <run> <field: η | ζ | w> <first day> <last day>
 
@@ -10,7 +10,7 @@ using Oceananigans.ImmersedBoundaries: immersed_cell
 # MAKIE_BACKEND=GLMakie renders on the GPU where there is a display; CairoMakie works headless.
 const backend = get(ENV, "MAKIE_BACKEND", "CairoMakie")
 @eval using $(Symbol(backend))
-@eval using $(Symbol(backend)).GeometryBasics: Point3f, GLTriangleFace, Sphere
+@eval using $(Symbol(backend)).GeometryBasics: Point3f, GLTriangleFace
 using Printf
 
 run_name, field_name = ARGS[1], ARGS[2]
@@ -29,8 +29,10 @@ function on_sphere(i, j)
     return Point3f(cos(φ) * cos(λ), cos(φ) * sin(λ), sin(φ))
 end
 
-# Four vertices per ocean cell, so that each cell is colored by its own value; Makie draws each quadrilateral as two triangles
-cells = [(i, j) for j in 1:Ny for i in 1:Nx if wet[i, j]]
+# Four vertices per cell, so that each cell is colored by its own value; Makie draws each quadrilateral as two triangles.
+# Land is part of the same mesh because CairoMakie orders faces by depth only within one mesh.
+cells = [(i, j) for j in 1:Ny for i in 1:Nx]
+cell_is_wet = [wet[i, j] for (i, j) in cells]
 vertices = Point3f[]
 for (i, j) in cells
     append!(vertices, (on_sphere(i, j), on_sphere(i + 1, j), on_sphere(i + 1, j + 1), on_sphere(i, j + 1)))
@@ -49,25 +51,27 @@ function cell_values(n)
     return [s[i, j] for (i, j) in cells]
 end
 
-ocean_values = sort(abs.(cell_values(last(frames))))
+ocean_values = sort(abs.(cell_values(last(frames))[cell_is_wet]))
 limit = ocean_values[ceil(Int, parse(Float64, get(ENV, "PERCENTILE", "99")) / 100 * length(ocean_values))]
 colorrange = (-limit, limit)
 
 n = Observable(first(frames))
-colors = @lift repeat(cell_values($n); inner = 4)
+colormap = cgrad(:balance)
+land_color = RGBf(0.3, 0.3, 0.3)
+cell_color(value, wet) = wet ? get(colormap, clamp((value + limit) / 2limit, 0, 1)) : land_color
+colors = @lift repeat(cell_color.(cell_values($n), cell_is_wet); inner = 4)
 title = @lift @sprintf("%s%s, day %.2f", labels[field_name], high_pass ? ", minus its 25-hour mean" : "", c.times[$n] / 86400)
 
 fig = Figure(size = (900, 900), backgroundcolor = :black)
 Label(fig[0, 1], title; color = :white, fontsize = 22, tellwidth = false)
 ax = LScene(fig[1, 1]; show_axis = false)
-mesh!(ax, Sphere(Point3f(0), 0.999f0); color = :gray30, shading = NoShading)
-mesh!(ax, vertices, faces; color = colors, colormap = :balance, colorrange, shading = NoShading)
-Colorbar(fig[2, 1]; colormap = :balance, colorrange, vertical = false, width = Relative(0.6),
+mesh!(ax, vertices, faces; color = colors, shading = NoShading)
+Colorbar(fig[2, 1]; colormap, colorrange, vertical = false, width = Relative(0.6),
          labelcolor = :white, ticklabelcolor = :white, label = labels[field_name])
 
 cam3d!(ax.scene)
 function look_from!(λ, φ)
-    eye = 3.2 .* Vec3f(cosd(φ) * cosd(λ), cosd(φ) * sind(λ), sind(φ))
+    eye = 2.3 .* Vec3f(cosd(φ) * cosd(λ), cosd(φ) * sind(λ), sind(φ))
     update_cam!(ax.scene, eye, Vec3f(0, 0, 0), Vec3f(0, 0, 1))
 end
 

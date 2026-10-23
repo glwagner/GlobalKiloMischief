@@ -62,7 +62,15 @@ Tᵢ(x, y, z) = N₀^2 * d / 2 * exp(2z / d) / (g * α)
 
 Φ = Tidejinks.TidalPotential(grid, (start_date, end_date); reference_frame = "IAU_EARTH")
 equation_of_state = LinearEquationOfState(thermal_expansion = α, haline_contraction = 0)
-closure = VerticalScalarDiffusivity(VerticallyImplicitTimeDiscretization(); ν = 1e-4, κ = 1e-5)
+vertical_closure = VerticalScalarDiffusivity(VerticallyImplicitTimeDiscretization(); ν = 1e-4, κ = 1e-5)
+
+# Biharmonic viscosity ν = Az² / τ removes the internal-tide energy that cascades to the grid scale. With the default
+# τ = 30 days, waves two cells long decay in about 7 hours.
+τ = parse(Float64, get(ENV, "BIHARMONIC_TIMESCALE", "30")) * days
+@inline νhb(i, j, k, grid, τ) = Oceananigans.Operators.Azᶜᶜᶜ(i, j, k, grid)^2 / τ
+ν = Field{Center, Center, Center}(grid)
+set!(ν, KernelFunctionOperation{Center, Center, Center}(νhb, grid, convert(FT, τ)))
+closure = (vertical_closure, HorizontalScalarBiharmonicDiffusivity(; ν))
 momentum_advection = get(ENV, "MOMENTUM_ADVECTION", "default") == "none" ? nothing : WENOVectorInvariant()
 free_surface = NumericalEarth.Oceans.default_free_surface(grid; fixed_Δt = Δt)
 
@@ -82,8 +90,8 @@ T₀, ζ_per_T = convert(FT, Tᵢ(0, 0, z₀)), convert(FT, g * α / N²(z₀))
 w = view(ocean.model.velocities.w, :, :, kʷ)
 η = ocean.model.free_surface.displacement
 
-name = @sprintf("internal_tides_%s_%s_%gdeg_Nz%d_dt%gmin%s", arch_name, FT_name, 1 / cells_per_degree, Nz, Δt / minutes,
-                get(ENV, "RUN_SUFFIX", ""))
+name = @sprintf("internal_tides_%s_%s_%gdeg_Nz%d_dt%gmin_tau%gd%s", arch_name, FT_name, 1 / cells_per_degree, Nz,
+                Δt / minutes, τ / days, get(ENV, "RUN_SUFFIX", ""))
 ocean.output_writers[:surface] = JLD2Writer(ocean.model, (; ζ, η, w); filename = joinpath("output", name),
                                             schedule = TimeInterval(1hours), overwrite_files = true)
 

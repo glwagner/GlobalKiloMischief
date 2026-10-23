@@ -42,7 +42,9 @@ Environment variables select variants: `MOMENTUM_ADVECTION=none | centered` (def
 `internal_tides.jl <CPU | CUDA | Metal> <Float64 | Float32> <cells per degree> <Nz> <Δt in minutes> <days>` follows
 Simmons, Hallberg & Arbic (2004): an ocean at rest with horizontally uniform stratification N = N₀ exp(z / d)
 (N₀ = 5.2e-3 s⁻¹, d = 1300 m) forced only by the tidal potential. It saves hourly the isopycnal displacement ζ at about
-1000 m, the vertical velocity at about 200 m, and η. At 1/2ᵒ the mode-1 M2 wavelength (about 100 km) is only two
+1000 m, the vertical velocity at about 200 m, and η. A biharmonic viscosity ν = Az² / τ (`BIHARMONIC_TIMESCALE`, default
+30 days) removes the wave energy that cascades to the grid scale; without it the field fills with grid-scale noise
+within a week. At 1/2ᵒ the mode-1 M2 wavelength (about 100 km) is only two
 cells; use 1/4ᵒ or finer.
 
 Analysis: `harmonic_analysis.jl` fits M2, S2, K1, O1 over days 10–30 and compares runs; `animate_globe.jl <run> <η | ζ | w> <first day> <last day>` animates a
