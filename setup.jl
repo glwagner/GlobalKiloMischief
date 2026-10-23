@@ -238,10 +238,15 @@ and a checkpoint every 5 days so that a later run with a longer `stop_time` pick
 function global_simulation(model; name, Δt, max_Δt, stop_time, cfl = 0.5, checkpoint_interval = 5days,
                            surface_output_interval = 1day)
     directory = mkpath(joinpath(run_directory, name))
-    # Checkpoints do not store Δt. A spun-up state permits `max_Δt`, so a pickup starts there instead of ramping up again.
-    # The iteration-0 checkpoint is the state at rest, which still needs the ramp.
+    # Checkpoints do not store Δt, so it is saved next to them and a pickup starts from it instead of ramping up again.
+    # Without a saved Δt a pickup starts at `max_Δt`, which the wizard first corrects after 10 steps: from a 90-minute
+    # cap that blew up runs whose CFL-limited Δt was 40 minutes. The iteration-0 checkpoint is the state at rest.
     picking_up = any(contains(r"^checkpoint.*_iteration[1-9]"), readdir(directory))
-    simulation = Simulation(model; Δt = picking_up ? max_Δt : Δt, stop_time)
+    Δt_path = joinpath(directory, "Δt")
+    pickup_Δt = isfile(Δt_path) ? min(max_Δt, parse(Float64, read(Δt_path, String))) : max_Δt
+    simulation = Simulation(model; Δt = picking_up ? pickup_Δt : Δt, stop_time)
+    save_Δt(sim) = (!MPI.Initialized() || MPI.Comm_rank(MPI.COMM_WORLD) == 0) && write(Δt_path, string(sim.Δt))
+    add_callback!(simulation, save_Δt, TimeInterval(checkpoint_interval))
 
     wizard = TimeStepWizard(; cfl, max_Δt, max_change = 1.05, cell_advection_timescale = horizontal_advection_timescale)
     add_callback!(simulation, wizard, IterationInterval(10))
