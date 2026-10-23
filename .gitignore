@@ -1,2 +1,5 @@
 logs/
 *.jld2
+tides/output/
+tides/spice/
+tides/kernels.txt

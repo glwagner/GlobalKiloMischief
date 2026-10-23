@@ -1,0 +1,14 @@
+[deps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+ClimaSeaIce = "6ba0ff68-24e6-4315-936c-2e99227c95a4"
+JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+NumericalEarth = "904d977b-046a-4731-8b86-9235c0d1ef02"
+Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
+SPICE = "5bab7191-041a-5c2e-a744-024b9c3a5062"
+Tidejinks = "db77dab1-bec2-4bb3-a820-8f5cb2226900"
+
+[sources]
+ClimaSeaIce = {url = "https://github.com/CliMA/ClimaSeaIce.jl", rev = "38a99e5"}
+NumericalEarth = {url = "https://github.com/NumericalEarth/NumericalEarth.jl", rev = "cc4230ccc47e461475cac7d77ebab8a19f28f41a"}
+Tidejinks = {url = "https://github.com/glwagner/Tidejinks.jl", rev = "2539717"}
