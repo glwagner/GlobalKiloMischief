@@ -15,6 +15,7 @@ using ClimaSeaIce: IncrementalRemapping
 using ClimaSeaIce.Rheologies: ElastoViscoPlasticRheology
 using ClimaSeaIce.SeaIceDynamics: SplitExplicitSolver
 using CUDA
+using MPI: MPI
 using CDSAPI           # loads the ERA5 download extension
 using CopernicusMarine  # loads the GLORYS download extension
 using Dates: Dates, Date, DateTime, Day, Millisecond
@@ -231,10 +232,11 @@ horizontal_advection_timescale(model) =
 """
     global_simulation(model; name, Δt, max_Δt, stop_time, cfl = 0.5)
 
-Coupled simulation with an adaptive time step, a progress message every 50 iterations, daily surface output,
+Coupled simulation with an adaptive time step, a progress message every 50 iterations, surface output (daily by default),
 and a checkpoint every 5 days so that a later run with a longer `stop_time` picks up where this one ended.
 """
-function global_simulation(model; name, Δt, max_Δt, stop_time, cfl = 0.5, checkpoint_interval = 5days)
+function global_simulation(model; name, Δt, max_Δt, stop_time, cfl = 0.5, checkpoint_interval = 5days,
+                           surface_output_interval = 1day)
     directory = mkpath(joinpath(run_directory, name))
     # Checkpoints do not store Δt. A spun-up state permits `max_Δt`, so a pickup starts there instead of ramping up again.
     # The iteration-0 checkpoint is the state at rest, which still needs the ramp.
@@ -255,7 +257,7 @@ function global_simulation(model; name, Δt, max_Δt, stop_time, cfl = 0.5, chec
     surface_outputs = merge(ocean.model.tracers, ocean.model.velocities)
     ocean.output_writers[:surface] = JLD2Writer(ocean.model, surface_outputs; dir = directory,
                                                 filename = "ocean_surface", indices = (:, :, Nz),
-                                                schedule = TimeInterval(1day), array_type = Array{Float32},
+                                                schedule = TimeInterval(surface_output_interval), array_type = Array{Float32},
                                                 including = [:grid])
 
     ocean.output_writers[:free_surface] = JLD2Writer(ocean.model, (; η = ocean.model.free_surface.displacement);
@@ -265,7 +267,7 @@ function global_simulation(model; name, Δt, max_Δt, stop_time, cfl = 0.5, chec
     sea_ice_outputs = merge((; h = sea_ice.model.ice_thickness, ℵ = sea_ice.model.ice_concentration),
                             sea_ice.model.velocities)
     sea_ice.output_writers[:surface] = JLD2Writer(sea_ice.model, sea_ice_outputs; dir = directory,
-                                                  filename = "sea_ice", schedule = TimeInterval(1day),
+                                                  filename = "sea_ice", schedule = TimeInterval(surface_output_interval),
                                                   array_type = Array{Float32})
 
     simulation.output_writers[:checkpointer] = Checkpointer(model; dir = directory, cleanup = true,
@@ -281,8 +283,11 @@ const step_clock = Ref(time_ns())
 function report_slow_step(sim)
     elapsed = 1e-9 * (time_ns() - step_clock[])
     step_clock[] = time_ns()
-    elapsed > 3 && @root @info @sprintf("slow step: iter %d at %s took %.1f s", iteration(sim),
-                                        start_date + Millisecond(round(Int, 1000 * time(sim))), elapsed)
+    # Not `@root`: it ends in an MPI barrier, and `elapsed` differs between ranks. Ranks just over 3 s waited in that
+    # barrier while the rest went on to the next step's halo exchange, which hung 4-rank runs at iteration 10.
+    root = !MPI.Initialized() || MPI.Comm_rank(MPI.COMM_WORLD) == 0
+    elapsed > 3 && root && @info @sprintf("slow step: iter %d at %s took %.1f s", iteration(sim),
+                                          start_date + Millisecond(round(Int, 1000 * time(sim))), elapsed)
     return nothing
 end
 const last_progress = Ref((iteration = 0, time = 0.0))

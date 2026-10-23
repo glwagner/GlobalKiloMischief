@@ -19,6 +19,7 @@ max_Δt = max_Δt_minutes * minutes
 arch = NCCLDistributed(GPU(); partition = Partition(1, 4))
 grid = @time "building the grid" global_grid(arch; cells_per_degree = 12)
 model = @time "building the model" ocean_sea_ice_model(grid; max_Δt, end_date = start_date + Day(stop_days + 1))
-simulation = global_simulation(model; name = "twelfth_degree_dt$(max_Δt_minutes)min" * (cfl == 0.5 ? "" : "_cfl$cfl"), Δt = 30, max_Δt, stop_time = stop_days * days, cfl)
+simulation = global_simulation(model; name = "twelfth_degree_dt$(max_Δt_minutes)min" * (cfl == 0.5 ? "" : "_cfl$cfl"), Δt = 30, max_Δt, stop_time = stop_days * days, cfl,
+                               surface_output_interval = 6hours)  # frames for animations
 
 run!(simulation; pickup = true)
