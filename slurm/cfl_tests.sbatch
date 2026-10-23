@@ -15,10 +15,10 @@
 #   sbatch slurm/cfl_tests.sbatch <stop_days> <max_Δt_minutes> <cfl>...
 source slurm/env.sh
 source slurm/stage_inputs.sh $1
-stop_days=$1; max_Δt=$2; shift 2
+stop_days=$1; max_dt=$2; shift 2
 for cfl in "$@"; do
     srun --ntasks=1 --gres=gpu:1 --cpus-per-task=16 --mem=95G --exact \
         --output=logs/cfl_tests-$SLURM_JOB_ID-cfl$cfl.log \
-        julia --project=. sixth_degree.jl $stop_days $max_Δt $cfl &
+        julia --project=. sixth_degree.jl $stop_days $max_dt $cfl &
 done
 wait
