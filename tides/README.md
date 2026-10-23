@@ -37,8 +37,16 @@ by running `single_level.jl` there for a fraction of a day on the CPU.
 Environment variables select variants: `MOMENTUM_ADVECTION=none | centered` (default `WENOVectorInvariant()`),
 `HORIZONTAL_VISCOSITY` (m² s⁻¹), `NO_SLIP=true`, `IMPLICIT_BOTTOM_DRAG=false`, `MINIMUM_DEPTH`, `RUN_SUFFIX`.
 
-Analysis: `harmonic_analysis.jl` fits M2, S2, K1, O1 over days 10–30 and compares runs; `animate_globe.jl` animates η on
-the sphere; `locate_blowup.jl` finds where η grows; `spin_down.jl` checks that bottom drag slows the depth-mean flow.
+## Internal tides
+
+`internal_tides.jl <CPU | CUDA | Metal> <Float64 | Float32> <cells per degree> <Nz> <Δt in minutes> <days>` follows
+Simmons, Hallberg & Arbic (2004): an ocean at rest with horizontally uniform stratification N = N₀ exp(z / d)
+(N₀ = 5.2e-3 s⁻¹, d = 1300 m) forced only by the tidal potential. It saves hourly the isopycnal displacement ζ at about
+1000 m, the vertical velocity at about 200 m, and η. At 1/2ᵒ the mode-1 M2 wavelength (about 100 km) is only two
+cells; use 1/4ᵒ or finer.
+
+Analysis: `harmonic_analysis.jl` fits M2, S2, K1, O1 over days 10–30 and compares runs; `animate_globe.jl <run> <η | ζ | w> <first day> <last day>` animates a
+field on the sphere (`HIGH_PASS=true` subtracts the 25-hour running mean); `locate_blowup.jl` finds where η grows; `spin_down.jl` checks that bottom drag slows the depth-mean flow.
 
 ## Results so far (Metal, CPU; 2026-10-22)
 
