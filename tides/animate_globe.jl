@@ -3,6 +3,8 @@
 # PERCENTILE-th percentile (default 99) of |value| over ocean cells in the last frame.
 #
 #   julia --project animate_globe.jl <run> <field: η | ζ | w> <first day> <last day>
+#
+# The view starts over longitude LONGITUDE (default -160) and turns eastward SPIN degrees per hourly frame (default 1).
 
 using Oceananigans
 using Oceananigans.Grids: λnode, φnode
@@ -75,9 +77,12 @@ function look_from!(λ, φ)
     update_cam!(ax.scene, eye, Vec3f(0, 0, 0), Vec3f(0, 0, 1))
 end
 
+first_longitude = parse(Float64, get(ENV, "LONGITUDE", "-160"))
+spin = parse(Float64, get(ENV, "SPIN", "1"))
+
 filename = joinpath(@__DIR__, "output", run_name * "_" * field_name * (high_pass ? "_high_pass" : "") * "_globe.mp4")
 record(fig, filename, eachindex(frames); framerate = 8) do m
     n[] = frames[m]
-    look_from!(-160 + 360 * (m - 1) / length(frames), 10)
+    look_from!(first_longitude + spin * (m - 1), 10)
 end
 @info "Saved $filename"
