@@ -5,6 +5,7 @@
 #   julia --project animate_globe.jl <run> <field: η | ζ | w> <first day> <last day>
 #
 # The view starts over longitude LONGITUDE (default -160) and turns eastward SPIN degrees per hourly frame (default 1).
+# With REFERENCE=<another run>, each frame shows the difference between the two runs, labeled REFERENCE_LABEL.
 
 using Oceananigans
 using Oceananigans.Grids: λnode, φnode
@@ -20,6 +21,11 @@ first_day, last_day = parse.(Float64, ARGS[3:4])
 labels = Dict("η" => "Sea surface height (m)", "ζ" => "Isopycnal displacement (m)", "w" => "Vertical velocity (m s⁻¹)")
 
 c = FieldTimeSeries(joinpath(@__DIR__, "output", run_name * ".jld2"), field_name; backend = InMemory())
+reference_name = get(ENV, "REFERENCE", "")
+reference = isempty(reference_name) ? nothing :
+            FieldTimeSeries(joinpath(@__DIR__, "output", reference_name * ".jld2"), field_name; backend = InMemory())
+reference_label = get(ENV, "REFERENCE_LABEL", "reference")
+isnothing(reference) || reference.times == c.times || error("$run_name and $reference_name have different output times")
 grid = c.grid
 Nx, Ny, Nz = size(grid)
 k = min(first(c.indices[3]), Nz) # the level of the slice; η lives at Nz + 1
@@ -47,7 +53,8 @@ window = high_pass ? 12 : 0
 frames = findall(t -> first_day * 86400 ≤ t ≤ last_day * 86400, c.times)
 frames = filter(n -> n - window ≥ 1 && n + window ≤ length(c.times), frames)
 
-slice(n) = Array(interior(c[n], :, :, 1))
+slice(n) = isnothing(reference) ? Array(interior(c[n], :, :, 1)) :
+                                   Array(interior(c[n], :, :, 1)) .- Array(interior(reference[n], :, :, 1))
 function cell_values(n)
     s = high_pass ? slice(n) .- sum(slice, n-window:n+window) ./ (2window + 1) : slice(n)
     return [s[i, j] for (i, j) in cells]
@@ -62,7 +69,9 @@ colormap = cgrad(:balance)
 land_color = RGBf(0.3, 0.3, 0.3)
 cell_color(value, wet) = wet ? get(colormap, clamp((value + limit) / 2limit, 0, 1)) : land_color
 colors = @lift repeat(cell_color.(cell_values($n), cell_is_wet); inner = 4)
-title = @lift @sprintf("%s%s, day %.2f", labels[field_name], high_pass ? ", minus its 25-hour mean" : "", c.times[$n] / 86400)
+difference = isnothing(reference) ? "" : " minus " * reference_label
+title = @lift @sprintf("%s%s%s, day %.2f", labels[field_name], difference, high_pass ? ", minus its 25-hour mean" : "",
+                       c.times[$n] / 86400)
 
 fig = Figure(size = (900, 900), backgroundcolor = :black)
 Label(fig[0, 1], title; color = :white, fontsize = 22, tellwidth = false)
@@ -80,7 +89,8 @@ end
 first_longitude = parse(Float64, get(ENV, "LONGITUDE", "-160"))
 spin = parse(Float64, get(ENV, "SPIN", "1"))
 
-filename = joinpath(@__DIR__, "output", run_name * "_" * field_name * (high_pass ? "_high_pass" : "") * "_globe.mp4")
+filename = joinpath(@__DIR__, "output", run_name * "_" * field_name * (high_pass ? "_high_pass" : "") *
+                   (isnothing(reference) ? "" : "_minus_" * replace(reference_label, " " => "_")) * "_globe.mp4")
 record(fig, filename, eachindex(frames); framerate = 8) do m
     n[] = frames[m]
     look_from!(first_longitude + spin * (m - 1), 10)
