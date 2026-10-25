@@ -75,9 +75,24 @@ closure = (vertical_closure, HorizontalScalarBiharmonicDiffusivity(; ν))
 momentum_advection = get(ENV, "MOMENTUM_ADVECTION", "default") == "none" ? nothing : WENOVectorInvariant()
 free_surface = NumericalEarth.Oceans.default_free_surface(grid; fixed_Δt = Δt)
 
+# Self-attraction and loading: SELF_ATTRACTION_AND_LOADING = none (default), scalar (β = SCALAR_LOADING_COEFFICIENT,
+# default 0.1), or spherical_harmonic (degree LOADING_TRUNCATION, default 40, as in LLC4320v2).
+loading = get(ENV, "SELF_ATTRACTION_AND_LOADING", "none")
+self_attraction_and_loading, loading_suffix = if loading == "scalar"
+    β = parse(Float64, get(ENV, "SCALAR_LOADING_COEFFICIENT", "0.1"))
+    ScalarSelfAttractionAndLoading(β), @sprintf("_scalar%g", β)
+elseif loading == "spherical_harmonic"
+    @eval using SpeedyTransforms, ConservativeRegridding
+    truncation = parse(Int, get(ENV, "LOADING_TRUNCATION", "40"))
+    SphericalHarmonicSelfAttractionAndLoading(grid; truncation, nlat_half = max(24, cld(truncation + 1, 2) + 1)),
+        @sprintf("_harmonic%d", truncation)
+else
+    nothing, ""
+end
+
 bottom_drag_coefficient = parse(Float64, get(ENV, "BOTTOM_DRAG_COEFFICIENT", "0.003"))
 ocean = ocean_simulation(grid; Δt, free_surface, barotropic_potential = Φ, closure, equation_of_state, momentum_advection,
-                         bottom_drag_coefficient,
+                         bottom_drag_coefficient, self_attraction_and_loading,
                          radiative_forcing = nothing, gravitational_acceleration = g, stop_time = stop_days * days)
 set!(ocean.model, T = Tᵢ, S = 35)
 
@@ -93,8 +108,8 @@ T₀, ζ_per_T = convert(FT, Tᵢ(0, 0, z₀)), convert(FT, g * α / N²(z₀))
 w = view(ocean.model.velocities.w, :, :, kʷ)
 η = ocean.model.free_surface.displacement
 
-name = @sprintf("internal_tides_%s_%s_%gdeg_Nz%d_dt%gmin_tau%gd%s", arch_name, FT_name, 1 / cells_per_degree, Nz,
-                Δt / minutes, τ / days, get(ENV, "RUN_SUFFIX", ""))
+name = @sprintf("internal_tides_%s_%s_%gdeg_Nz%d_dt%gmin_tau%gd%s%s", arch_name, FT_name, 1 / cells_per_degree, Nz,
+                Δt / minutes, τ / days, loading_suffix, get(ENV, "RUN_SUFFIX", ""))
 ocean.output_writers[:surface] = JLD2Writer(ocean.model, (; ζ, η, w); filename = joinpath("output", name),
                                             schedule = TimeInterval(1hours), overwrite_files = true)
 
