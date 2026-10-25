@@ -110,7 +110,9 @@ w = view(ocean.model.velocities.w, :, :, kʷ)
 
 name = @sprintf("internal_tides_%s_%s_%gdeg_Nz%d_dt%gmin_tau%gd%s%s", arch_name, FT_name, 1 / cells_per_degree, Nz,
                 Δt / minutes, τ / days, loading_suffix, get(ENV, "RUN_SUFFIX", ""))
-ocean.output_writers[:surface] = JLD2Writer(ocean.model, (; ζ, η, w); filename = joinpath("output", name),
+outputs = (; ζ, η, w)
+self_attraction_and_loading isa SphericalHarmonicSelfAttractionAndLoading && (outputs = merge(outputs, (; Ψ = self_attraction_and_loading.potential)))
+ocean.output_writers[:surface] = JLD2Writer(ocean.model, outputs; filename = joinpath("output", name),
                                             schedule = TimeInterval(1hours), overwrite_files = true)
 
 wall_time = Ref(time_ns())
