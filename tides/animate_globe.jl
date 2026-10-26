@@ -20,10 +20,11 @@ run_name, field_name = ARGS[1], ARGS[2]
 first_day, last_day = parse.(Float64, ARGS[3:4])
 labels = Dict("η" => "Sea surface height (m)", "ζ" => "Isopycnal displacement (m)", "w" => "Vertical velocity (m s⁻¹)")
 
-c = FieldTimeSeries(joinpath(@__DIR__, "output", run_name * ".jld2"), field_name; backend = InMemory())
+# Snapshots are read from disk as frames need them, so that 20-day runs fit in memory
+c = FieldTimeSeries(joinpath(@__DIR__, "output", run_name * ".jld2"), field_name; backend = OnDisk())
 reference_name = get(ENV, "REFERENCE", "")
 reference = isempty(reference_name) ? nothing :
-            FieldTimeSeries(joinpath(@__DIR__, "output", reference_name * ".jld2"), field_name; backend = InMemory())
+            FieldTimeSeries(joinpath(@__DIR__, "output", reference_name * ".jld2"), field_name; backend = OnDisk())
 reference_label = get(ENV, "REFERENCE_LABEL", "reference")
 isnothing(reference) || reference.times == c.times || error("$run_name and $reference_name have different output times")
 grid = c.grid
@@ -53,8 +54,15 @@ window = high_pass ? 12 : 0
 frames = findall(t -> first_day * 86400 ≤ t ≤ last_day * 86400, c.times)
 frames = filter(n -> n - window ≥ 1 && n + window ≤ length(c.times), frames)
 
-slice(n) = isnothing(reference) ? Array(interior(c[n], :, :, 1)) :
-                                   Array(interior(c[n], :, :, 1)) .- Array(interior(reference[n], :, :, 1))
+# Each slice is used by up to 2window + 1 frames, so keep those within reach of the current frame
+slices = Dict{Int, Matrix{Float64}}()
+function slice(n)
+    get!(slices, n) do
+        filter!(((m, _),) -> m ≥ n - 2window, slices)
+        isnothing(reference) ? Array(interior(c[n], :, :, 1)) :
+                               Array(interior(c[n], :, :, 1)) .- Array(interior(reference[n], :, :, 1))
+    end
+end
 function cell_values(n)
     s = high_pass ? slice(n) .- sum(slice, n-window:n+window) ./ (2window + 1) : slice(n)
     return [s[i, j] for (i, j) in cells]
