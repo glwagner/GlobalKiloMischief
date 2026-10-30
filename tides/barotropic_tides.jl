@@ -6,7 +6,9 @@
 #   SELF_ATTRACTION_AND_LOADING=<none | scalar | spherical_harmonic | convolution> \
 #       julia --project barotropic_tides.jl <CPU | CUDA> <cells per degree> <Δt in minutes> <days>
 #
-# The convolution (Chen, Wang, Arbic & Krasny 2026) is summed directly in CONVOLUTION_PRECISION (default Float32).
+# The convolution (Chen, Wang, Arbic & Krasny 2026) is summed directly in CONVOLUTION_PRECISION (default Float32),
+# with PREM load Love numbers and the self-cell term (CONVOLUTION_KERNEL=exact, the default), or as in the paper's MOM6
+# code (CONVOLUTION_KERNEL=paper: asymptotic Love numbers, no self-cell term, kernel divided by 3).
 
 using NumericalEarth
 using Oceananigans
@@ -58,6 +60,7 @@ closure = HorizontalScalarBiharmonicDiffusivity(; ν)
 free_surface = NumericalEarth.Oceans.default_free_surface(grid; fixed_Δt = Δt)
 
 loading = get(ENV, "SELF_ATTRACTION_AND_LOADING", "none")
+loading_suffix = loading
 self_attraction_and_loading = if loading == "scalar"
     ScalarSelfAttractionAndLoading(parse(Float64, get(ENV, "SCALAR_LOADING_COEFFICIENT", "0.1")))
 elseif loading == "spherical_harmonic"
@@ -66,7 +69,14 @@ elseif loading == "spherical_harmonic"
     SphericalHarmonicSelfAttractionAndLoading(grid; truncation, nlat_half = max(24, cld(truncation + 1, 2) + 1))
 elseif loading == "convolution"
     FT = get(ENV, "CONVOLUTION_PRECISION", "Float32") == "Float64" ? Float64 : Float32
-    ConvolutionSelfAttractionAndLoading(grid; FT)
+    if get(ENV, "CONVOLUTION_KERNEL", "exact") == "paper"
+        loading_suffix = "convolution_paper"
+        ConvolutionSelfAttractionAndLoading(grid; FT, love_numbers = AsymptoticLoadLoveNumbers(), self_term = false,
+                                            earth_density = 3 * 5517)
+    else
+        loading_suffix = "convolution_prem"
+        ConvolutionSelfAttractionAndLoading(grid; FT)
+    end
 else
     nothing
 end
@@ -79,7 +89,7 @@ ocean = ocean_simulation(grid; Δt, free_surface, barotropic_potential = Φ, clo
 set!(ocean.model, T = 10, S = 35)
 
 η = ocean.model.free_surface.displacement
-name = @sprintf("barotropic_tides_%gdeg_dt%gmin_%s", 1 / cells_per_degree, Δt / minutes, loading)
+name = @sprintf("barotropic_tides_%gdeg_dt%gmin_%s", 1 / cells_per_degree, Δt / minutes, loading_suffix)
 ocean.output_writers[:surface] = JLD2Writer(ocean.model, (; η); filename = joinpath("output", name),
                                             schedule = TimeInterval(1hours), overwrite_files = true)
 
