@@ -1,5 +1,6 @@
-# Animate surface current speed from the daily `ocean_surface.jld2` output of one or more run directories, in order.
-# Snapshots are deduplicated by time, so segments that redid days after a restart contribute each day once.
+# Animate surface current speed from the `ocean_surface` output of one or more run directories, in order. A distributed
+# run writes one file per rank (`ocean_surface_rank<r>.jld2`, each a band of rows), which are stacked in rank order.
+# Snapshots are deduplicated by time, so segments that redid days after a restart contribute each time once.
 #
 #   julia --project=<env with CairoMakie and JLD2> animate_surface_speed.jl <output.mp4> <run directory>...
 
@@ -12,14 +13,17 @@ output_path = ARGS[1]
 run_directories = ARGS[2:end]
 start_date = DateTime(2015, 1, 1)
 
-# (time, file, iteration) of every snapshot, latest file winning for a repeated time
-snapshots = Dict{Float64, Tuple{String, String}}()
+surface_files(directory) = isfile(joinpath(directory, "ocean_surface.jld2")) ? [joinpath(directory, "ocean_surface.jld2")] :
+    [joinpath(directory, "ocean_surface_rank$r.jld2") for r in 0:count(startswith("ocean_surface_rank"), readdir(directory))-1]
+
+# (time, files, iteration) of every snapshot, latest directory winning for a repeated time
+snapshots = Dict{Float64, Tuple{Vector{String}, String}}()
 for directory in run_directories
-    path = joinpath(directory, "ocean_surface.jld2")
-    jldopen(path) do file
+    paths = surface_files(directory)
+    jldopen(first(paths)) do file
         for iteration in keys(file["timeseries/t"])
             iteration == "serialized" && continue
-            snapshots[file["timeseries/t/$iteration"]] = (path, iteration)
+            snapshots[file["timeseries/t/$iteration"]] = (paths, iteration)
         end
     end
 end
@@ -28,7 +32,7 @@ times = sort(collect(keys(snapshots)))
 
 # Speed at cell centers from face velocities, NaN on land (where every face velocity is zero). The grids have
 # 360c × 170c cells, so whatever the size exceeds a multiple of 360 or 170 by is the halo on both sides.
-function surface_speed(path, iteration)
+function surface_speed(path::String, iteration)
     u, v = jldopen(path) do file
         (file["timeseries/u/$iteration"][:, :, 1], file["timeseries/v/$iteration"][:, :, 1])
     end
@@ -43,9 +47,11 @@ function surface_speed(path, iteration)
     return ifelse.(s .== 0, NaN32, s)
 end
 
+surface_speed(paths::Vector{String}, iteration) = reduce(hcat, [surface_speed(path, iteration) for path in paths])
+
 n = Observable(1)
 speed = @lift surface_speed(snapshots[times[$n]]...)
-title = @lift @sprintf("Surface speed, %s", Date(start_date + Second(round(Int, times[$n]))))
+title = @lift @sprintf("Surface speed, %s", Dates.format(start_date + Second(round(Int, times[$n])), "yyyy-mm-dd HH:MM"))
 
 Nx, Ny = size(speed[])
 fig = Figure(size = (1600, round(Int, 1600 * Ny / Nx) + 80), backgroundcolor = :black)
@@ -56,7 +62,7 @@ hm = heatmap!(ax, speed; colormap = :deep, colorrange = (0, 1.2), nan_color = :g
 Colorbar(fig[1, 2], hm; label = "m s⁻¹", labelcolor = :white, tickcolor = :white, ticklabelcolor = :white)
 
 save(replace(output_path, ".mp4" => "_first.png"), fig)
-record(fig, output_path, eachindex(times); framerate = 12) do i
+record(fig, output_path, eachindex(times); framerate = length(times) > 200 ? 24 : 12) do i
     n[] = i
 end
 save(replace(output_path, ".mp4" => "_last.png"), fig)
