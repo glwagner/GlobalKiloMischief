@@ -12,7 +12,7 @@ export JULIA_PKG_PRECOMPILE_AUTO=0
 export NUMERICALEARTH_DATA_DIRECTORY=/work/hdd/bhcr/glwagner/numericalearth_data
 # Run output and 20 GB checkpoints go on the NVMe allocation; the HDD allocation holds the input data.
 export RUN_DIRECTORY=${RUN_DIRECTORY:-/work/nvme/bhcr/glwagner/GlobalKiloMischief}
-cd /u/glwagner/GlobalKiloMischief
+cd "$(dirname "${BASH_SOURCE[0]}")/.."  # the checkout this file belongs to, so worktrees run their own code
 mkdir -p logs "$RUN_DIRECTORY" "$NUMERICALEARTH_DATA_DIRECTORY"
 echo "host: $(hostname)  job: ${SLURM_JOB_ID:-none}  start: $(date)"
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader 2>/dev/null || true
