@@ -2,7 +2,7 @@
 # MPI handles launch and scalar reductions. TripolarGrid supports y or even-x pencil partitions;
 # a y partition keeps the sea ice EVP halos (2 × substeps + 3 cells) inside each 510-row subdomain.
 #
-#   mpiexec -n 4 julia --project twelfth_degree.jl [stop_days=30] [max_Δt_minutes=10] [cfl=0.5]
+#   mpiexec -n 4 julia --project twelfth_degree.jl [stop_days=30] [max_Δt_minutes=30] [cfl=1.0]
 
 using MPI
 using Profile  # a SIGUSR1 then prints where every thread is
@@ -12,8 +12,8 @@ using Oceananigans.DistributedComputations: NCCLDistributed
 @time "loading packages and setup.jl" include("setup.jl")
 
 stop_days = parse(Int, get(ARGS, 1, "30"))
-max_Δt_minutes = parse(Int, get(ARGS, 2, "10"))
-cfl = parse(Float64, get(ARGS, 3, "0.5"))
+max_Δt_minutes = parse(Int, get(ARGS, 2, "30"))
+cfl = parse(Float64, get(ARGS, 3, "1.0"))
 max_Δt = max_Δt_minutes * minutes
 
 arch = NCCLDistributed(GPU(); partition = Partition(1, 4))

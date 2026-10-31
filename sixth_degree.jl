@@ -1,13 +1,13 @@
 # Global 1/6ᵒ ocean--sea ice simulation on a single GPU. Each run picks up from the latest checkpoint,
 # so run again with a larger `stop_days` to extend it.
 #
-#   julia --project sixth_degree.jl [stop_days=30] [max_Δt_minutes=20] [cfl=0.5]
+#   julia --project sixth_degree.jl [stop_days=30] [max_Δt_minutes=60] [cfl=1.0]
 
 @time "loading packages and setup.jl" include("setup.jl")
 
 stop_days = parse(Int, get(ARGS, 1, "30"))
-max_Δt_minutes = parse(Int, get(ARGS, 2, "20"))
-cfl = parse(Float64, get(ARGS, 3, "0.5"))
+max_Δt_minutes = parse(Int, get(ARGS, 2, "60"))
+cfl = parse(Float64, get(ARGS, 3, "1.0"))
 max_Δt = max_Δt_minutes * minutes
 
 grid = @time "building the grid" global_grid(GPU(); cells_per_degree = 6)
