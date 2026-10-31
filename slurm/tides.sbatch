@@ -16,8 +16,9 @@ source slurm/env.sh
 source slurm/stage_inputs.sh $2
 # Precompile once before launching ranks, which would otherwise race on the shared depot.
 julia --project=. -e 'using Pkg; Pkg.precompile()'
+# One node: MPI (initialized even for one rank) talks over shared memory; it finds no network provider otherwise.
+export FI_PROVIDER=shm
 if [ "${SLURM_NTASKS:-1}" -gt 1 ]; then
-    export FI_PROVIDER=shm
     MPIEXEC=$(julia --project=. -e 'using MPI; print(MPI.mpiexec().exec[1])')
     $MPIEXEC -n $SLURM_NTASKS julia --project=. tides.jl "$@"
 else
