@@ -82,14 +82,61 @@ else
 end
 @info "Self-attraction and loading: $(isnothing(self_attraction_and_loading) ? "none" : summary(self_attraction_and_loading))"
 
+# Linear topographic wave drag -χ C / H u (Jayne & St. Laurent 2001) with WAVE_DRAG_COEFFICIENT = χ > 0, where
+# C = κ h² N_b √(1 - f²/ω²) / 2 on 0.5ᵒ tiles comes from egbert_ray/solve/scripts/prep_wavedrag.py (zero where the
+# tile is shallower than 100 m), interpolated to cell centres. The rate χ C / H is capped at 1 / 2Δt for stability.
+const Adapt = NumericalEarth.Oceans.Adapt
+struct WaveDrag{D, R}
+    direction :: D
+    rate :: R
+end
+Adapt.@adapt_structure WaveDrag
+@inline (d::WaveDrag{<:NumericalEarth.Oceans.XDirection})(i, j, k, grid, clock, fields) = @inbounds - (d.rate[i-1, j, 1] + d.rate[i, j, 1]) / 2 * fields.u[i, j, k]
+@inline (d::WaveDrag{<:NumericalEarth.Oceans.YDirection})(i, j, k, grid, clock, fields) = @inbounds - (d.rate[i, j-1, 1] + d.rate[i, j, 1]) / 2 * fields.v[i, j, k]
+
+χ = parse(Float64, get(ENV, "WAVE_DRAG_COEFFICIENT", "0"))
+forcing = if χ > 0
+    C = reshape(reinterpret(Float64, read("wavedrag_halfdeg_C.bin")), 720, 312) # 0.5ᵒ tiles, lat from -77.75 to 77.75
+    function tile_value(λ, φ)
+        i = clamp(floor(Int, mod(λ, 360) / 0.5) + 1, 1, 720)
+        j = floor(Int, (φ + 78) / 0.5) + 1
+        return 1 ≤ j ≤ 312 ? C[i, j] : 0.0
+    end
+    rate = zeros(Nx, Ny)
+    for j in 1:Ny, i in 1:Nx
+        H = -bottom_height[i, j, 1]
+        λ = Oceananigans.Grids.λnode(i, j, 1, cpu_grid, Center(), Center(), Center())
+        φ = Oceananigans.Grids.φnode(i, j, 1, cpu_grid, Center(), Center(), Center())
+        rate[i, j] = H > 0 ? min(χ * tile_value(λ, φ) / H, 1 / 2Δt) : 0.0
+    end
+    r = Field{Center, Center, Nothing}(underlying_grid)
+    set!(r, reshape(rate, Nx, Ny, 1))
+    fill_halo_regions!(r)
+    @info @sprintf("Wave drag χ = %g: rate χ C / H median %.3f day⁻¹ over cells deeper than 1000 m, capped in %d cells", χ,
+                   86400 * sort(rate[-interior(bottom_height, :, :, 1) .> 1000])[end ÷ 2],
+                   count(rate .== 1 / 2Δt))
+    (u = WaveDrag(NumericalEarth.Oceans.XDirection(), r), v = WaveDrag(NumericalEarth.Oceans.YDirection(), r))
+else
+    NamedTuple()
+end
+wave_drag_suffix = χ > 0 ? @sprintf("_wavedrag%g", χ) : ""
+
+# CORIOLIS_SCHEME = EnstrophyConserving (default), EnergyConserving, ActiveWeightedEnstrophyConserving,
+# ActiveWeightedEnergyConserving or TriadScheme
+scheme_name = get(ENV, "CORIOLIS_SCHEME", "EnstrophyConserving")
+coriolis_scheme = getproperty(scheme_name ∈ ("EnstrophyConserving", "EnergyConserving") ? Oceananigans.Advection : Oceananigans.Coriolis,
+                              Symbol(scheme_name))()
+coriolis = HydrostaticSphericalCoriolis(scheme = coriolis_scheme)
+coriolis_suffix = scheme_name == "EnstrophyConserving" ? "" : "_" * scheme_name
+
 bottom_drag_coefficient = parse(Float64, get(ENV, "BOTTOM_DRAG_COEFFICIENT", "0.003"))
-ocean = ocean_simulation(grid; Δt, free_surface, barotropic_potential = Φ, closure, bottom_drag_coefficient,
+ocean = ocean_simulation(grid; Δt, free_surface, barotropic_potential = Φ, closure, bottom_drag_coefficient, forcing, coriolis,
                          self_attraction_and_loading, equation_of_state = LinearEquationOfState(),
                          radiative_forcing = nothing, gravitational_acceleration = g, stop_time = stop_days * days)
 set!(ocean.model, T = 10, S = 35)
 
 η = ocean.model.free_surface.displacement
-name = @sprintf("barotropic_tides_%gdeg_dt%gmin_%s", 1 / cells_per_degree, Δt / minutes, loading_suffix)
+name = @sprintf("barotropic_tides_%gdeg_dt%gmin_%s%s", 1 / cells_per_degree, Δt / minutes, loading_suffix, wave_drag_suffix * coriolis_suffix)
 ocean.output_writers[:surface] = JLD2Writer(ocean.model, (; η); filename = joinpath("output", name),
                                             schedule = TimeInterval(1hours), overwrite_files = true)
 
