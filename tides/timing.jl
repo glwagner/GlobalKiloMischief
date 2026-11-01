@@ -35,7 +35,14 @@ end
 synchronized_seconds(f) = (CUDA.synchronize(); t = time_ns(); f(); CUDA.synchronize(); 1e-9 * (time_ns() - t))
 
 for n in 1:3
-    @info @sprintf("%s warm-up step %d: %.2f s", variant, n, synchronized_seconds(() -> time_step!(model, Δt)))
+    if n == 1 && variant == "potential"
+        # Keep the PTX of every kernel compiled in the first step, for a register and spill check with ptxas -v
+        kernels = mkpath(joinpath(@__DIR__, "..", "logs", "kernels-$(get(ENV, "SLURM_JOB_ID", "local"))-$variant"))
+        seconds = synchronized_seconds(() -> CUDA.@device_code dir = kernels time_step!(model, Δt))
+    else
+        seconds = synchronized_seconds(() -> time_step!(model, Δt))
+    end
+    @info @sprintf("%s warm-up step %d: %.2f s", variant, n, seconds)
 end
 steps = [synchronized_seconds(() -> time_step!(model, Δt)) for n in 1:20]
 @info @sprintf("RESULT %s: median %.3f s/step, mean %.3f, min %.3f, max %.3f over %d steps of Δt = %d min (barotropic substeps for 60 min)",
