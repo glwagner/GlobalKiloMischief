@@ -21,12 +21,14 @@ export FI_PROVIDER=shm
 for env in /work/nvme/bhcr/glwagner/sal_test/env /work/nvme/bhcr/glwagner/sal_test/env_evaluated; do
     julia --project=$env -e 'using Pkg; Pkg.precompile()'
 done
+# Each configuration is a plain process on its own GPU: concurrent srun steps fail to launch on DeltaAI
+# ("Error configuring interconnect"), even 20 s apart.
+gpu=0
 for variant in "$@"; do
     env=/work/nvme/bhcr/glwagner/sal_test/env
     [[ $variant == *+evaluated ]] && env=/work/nvme/bhcr/glwagner/sal_test/env_evaluated
-    srun --ntasks=1 --gres=gpu:1 --cpus-per-task=16 --mem=95G --exact \
-        --output=logs/timing-$SLURM_JOB_ID-$variant.log \
-        julia --project=$env tides/timing.jl ${variant%+evaluated} &
-    sleep 20  # launching all steps at once once failed with "Error configuring interconnect"
+    CUDA_VISIBLE_DEVICES=$gpu JULIA_NUM_THREADS=16 julia --project=$env tides/timing.jl ${variant%+evaluated} \
+        > logs/timing-$SLURM_JOB_ID-$variant.log 2>&1 &
+    gpu=$((gpu + 1))
 done
 wait
