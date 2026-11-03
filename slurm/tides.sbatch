@@ -19,6 +19,8 @@ julia --project=. -e 'using Pkg; Pkg.precompile()'
 # One node: MPI (initialized even for one rank) talks over shared memory; it finds no network provider otherwise.
 export FI_PROVIDER=shm
 if [ "${SLURM_NTASKS:-1}" -gt 1 ]; then
+    # Every rank builds the whole bathymetry, so the regridding must be cached by one process first.
+    julia --project=. -e "include(\"setup.jl\"); c = $1; global_bottom_height(360c, 170c; halo = (7, 7, 4), minimum_depth = 20)"
     MPIEXEC=$(julia --project=. -e 'using MPI; print(MPI.mpiexec().exec[1])')
     $MPIEXEC -n $SLURM_NTASKS julia --project=. tides.jl "$@"
 else

@@ -18,7 +18,7 @@ Tidejinks = "db77dab1-bec2-4bb3-a820-8f5cb2226900"
 
 [sources]
 ClimaSeaIce = {rev = "38a99e5", url = "https://github.com/CliMA/ClimaSeaIce.jl"}
-NumericalEarth = {rev = "c5023fe745d729abdf0ee5c57c61cf84ebe087a1", url = "https://github.com/NumericalEarth/NumericalEarth.jl"}
+NumericalEarth = {rev = "e0a08daae58c46ac26118f61370313cc20bbc746", url = "https://github.com/NumericalEarth/NumericalEarth.jl"}
 Tidejinks = {rev = "2539717", url = "https://github.com/glwagner/Tidejinks.jl"}
 
 [compat]
