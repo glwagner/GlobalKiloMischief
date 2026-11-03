@@ -5,19 +5,19 @@
 #SBATCH --partition=ghx4-interactive
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=144
-#SBATCH --mem=400G
+#SBATCH --cpus-per-task=64
+#SBATCH --mem=256G
 #SBATCH --gres=gpu:1
 #SBATCH --time=02:00:00
 
 # The two-globe paper figure from the last snapshot, then an MP4 of every snapshot: CairoMakie draws on one core, so
-# PROCESSES renderers (default 48) each take every PROCESSES-th frame, and ffmpeg joins the frames at FRAMERATE (24).
+# PROCESSES renderers (default 32) each take every PROCESSES-th frame, and ffmpeg joins the frames at FRAMERATE (24).
 #   sbatch slurm/animate_globes.sbatch <run directory> <output prefix>   # writes <prefix>.png and <prefix>.mp4
 source slurm/env.sh
 env=/work/nvme/bhcr/glwagner/figure_env
 run=$1
 prefix=$2
-processes=${PROCESSES:-48}
+processes=${PROCESSES:-32}
 framerate=${FRAMERATE:-24}
 frames=$prefix-frames
 julia --project=$env -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
