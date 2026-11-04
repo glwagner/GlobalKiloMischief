@@ -218,9 +218,8 @@ function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120)
     ocean_surface = SurfaceRadiationProperties(albedo = LatitudeDependentAlbedo())
     radiation = @time "  ERA5 radiation" ERA5PrescribedRadiation(arch; start_date, end_date, ocean_surface, time_indices_in_memory = 48)
 
-    # There are no ice-shelf cavities, so supercooling below the upper ocean comes only from numerical undershoots
-    # (as at the bottom of steep topography), and must not turn into surface ice.
-    return @time "  coupled model" OceanSeaIceModel(ocean, sea_ice; atmosphere, land, radiation, frazil_formation_depth = 50)
+    # NumericalEarth main has no `frazil_formation_depth` (NumericalEarth#770), so frazil forms at any depth.
+    return @time "  coupled model" OceanSeaIceModel(ocean, sea_ice; atmosphere, land, radiation)
 end
 
 # Vertical advection is implicit where it would limit Δt, so only horizontal advection sets the time step.
