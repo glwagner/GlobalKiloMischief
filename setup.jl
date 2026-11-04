@@ -159,13 +159,15 @@ cells, with `Nz` z⋆ levels (1.4 m at the surface, 320 m at 6000 m depth) and E
 (see [`global_bottom_height`](@ref)).
 """
 function global_grid(arch; cells_per_degree = nothing, Nx = 360 * cells_per_degree, Ny = 170 * cells_per_degree,
-                     Nz = 100, depth = 6000, halo = (7, 7, 4))
+                     Nz = 100, depth = 6000, halo = (7, 7, 5))
     z = ExponentialDiscretization(Nz, -depth, 0; scale = 1100, mutable = true)
     underlying_grid = TripolarGrid(arch; size = (Nx, Ny, Nz), halo, z)
 
     # `set!` partitions a global host array across the ranks of a distributed grid.
     bottom_height = Field{Center, Center, Nothing}(underlying_grid)
-    set!(bottom_height, Array(interior(global_bottom_height(Nx, Ny; halo))))
+    # Oceananigans 0.116 needs a vertical halo of 5 on an immersed grid (0.113 took 4). The bathymetry keeps its own
+    # halo of (7, 7, 4), with which its regridding is cached, since only its interior is used here.
+    set!(bottom_height, Array(interior(global_bottom_height(Nx, Ny; halo = (7, 7, 4)))))
     fill_halo_regions!(bottom_height)
 
     return ImmersedBoundaryGrid(underlying_grid, GridFittedBottom(bottom_height); active_cells_map = true)
