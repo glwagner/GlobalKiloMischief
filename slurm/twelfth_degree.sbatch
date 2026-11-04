@@ -17,6 +17,8 @@ source slurm/stage_inputs.sh ${1:-30}  # stop_days
 julia --project=. -e 'using Pkg; Pkg.precompile()'
 # One node: MPI launches ranks and reduces scalars over shared memory, NCCL moves the GPU halos.
 export FI_PROVIDER=shm
+# Every rank builds the whole bathymetry, so the regridding must be cached by one process first.
+julia --project=. -e 'include("setup.jl"); global_bottom_height(4320, 2040; halo = (7, 7, 4))'
 MPIEXEC=$(julia --project=. -e 'using MPI; print(MPI.mpiexec().exec[1])')
 
 # A 4-rank run hung after 10 steps without an error (job 3354360). If the log stops growing for 15 minutes once
