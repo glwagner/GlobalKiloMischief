@@ -22,7 +22,7 @@ using Dates: Dates, Date, DateTime, Day, Millisecond
 using Printf
 using Statistics
 
-const start_date = DateTime(2015, 1, 1)
+const start_date = DateTime(get(ENV, "START_DATE", "2015-01-01"))
 const run_directory = get(ENV, "RUN_DIRECTORY", ".")
 
 @inline function squared_angular_distance(i, j, grid, λ₀, φ₀)
