@@ -53,8 +53,10 @@ function set_from_checkpoint!(model, directory; iteration, Nz_old = 100, depth =
             haskey(file, "simulation/model/" * name * "/data") || continue
             data = old(name)
             Nx, Ny = size(interior(field), 1), size(interior(field), 2)
+            # The free surface and sea ice carry wide halos for their substeps (η: 176 rows, sea ice: 243 rows here)
+            Hx, Hy = (size(data, 1) - Nx) ÷ 2, (size(data, 2) - Ny) ÷ 2
             k = (size(data, 3) + 1) ÷ 2  # the single level, between its vertical halos
-            interior(field) .= on_architecture(architecture(field), reshape(data[8:7+Nx, 8:7+Ny, k], Nx, Ny, 1))
+            interior(field) .= on_architecture(architecture(field), reshape(data[Hx+1:Hx+Nx, Hy+1:Hy+Ny, k], Nx, Ny, 1))
         end
     end
 
