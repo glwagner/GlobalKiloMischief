@@ -2,7 +2,7 @@
 # MPI handles launch and scalar reductions. TripolarGrid supports y or even-x pencil partitions;
 # a y partition keeps the sea ice EVP halos (2 × substeps + 3 cells) inside each 510-row subdomain.
 #
-#   mpiexec -n 4 julia --project twelfth_degree.jl [stop_days=30] [max_Δt_minutes=30] [cfl=1.0] [Nz=100]
+#   mpiexec -n 4 julia --project twelfth_degree.jl [stop_days=30] [max_Δt_minutes=30] [cfl=1.0] [Nz=100] [surface_output_hours=6]
 
 using MPI
 using Profile  # a SIGUSR1 then prints where every thread is
@@ -15,12 +15,13 @@ stop_days = parse(Int, get(ARGS, 1, "30"))
 max_Δt_minutes = parse(Int, get(ARGS, 2, "30"))
 cfl = parse(Float64, get(ARGS, 3, "1.0"))
 Nz = parse(Int, get(ARGS, 4, "100"))
+surface_output_interval = parse(Int, get(ARGS, 5, "6")) * hours
 max_Δt = max_Δt_minutes * minutes
 
 arch = NCCLDistributed(GPU(); partition = Partition(1, 4))
 grid = @time "building the grid" global_grid(arch; cells_per_degree = 12, Nz)
 model = @time "building the model" ocean_sea_ice_model(grid; max_Δt, end_date = start_date + Day(stop_days + 1))
 simulation = global_simulation(model; name = "twelfth_degree_dt$(max_Δt_minutes)min" * (cfl == 0.5 ? "" : "_cfl$cfl") * (Nz == 100 ? "" : "_Nz$Nz"), Δt = 30, max_Δt, stop_time = stop_days * days, cfl,
-                               surface_output_interval = 6hours)  # frames for animations
+                               surface_output_interval)  # frames for animations
 
 run!(simulation; pickup = true)

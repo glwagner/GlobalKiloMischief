@@ -4,8 +4,8 @@
 #   source slurm/stage_inputs.sh <stop_days>
 #
 # The mirror holds real copies of the GLORYS initial condition, the 2015 JRA55 runoff, the bathymetry cache, and
-# the ERA5 hours of the segment (from 12 days before `stop_days` to 2 days after, plus the first three days of
-# 2015, which every model build reads). Every other file is a symlink to /work/hdd, so a forcing series that checks
+# the ERA5 hours of the segment (from 12 days before `stop_days` to 2 days after, plus the first three days after START_DATE,
+# which every model build reads). Every other file is a symlink to /work/hdd, so a forcing series that checks
 # that all its files exist finds them. Downloads still go to /work/hdd.
 
 hdd_data=/work/hdd/bhcr/glwagner/numericalearth_data
@@ -32,14 +32,16 @@ for file in $(ls $hdd_data/JRA55); do
 done
 
 # ERA5: the segment's hours as copies, every other hour as a symlink.
-first_date=$(date -d "2015-01-01 + $(( $1 - 12 )) days" +%Y-%m-%d)
-last_date=$(date -d "2015-01-01 + $(( $1 + 2 )) days" +%Y-%m-%d)
+start=${START_DATE:-2015-01-01}
+first_date=$(date -d "$start + $(( $1 - 12 )) days" +%Y-%m-%d)
+last_date=$(date -d "$start + $(( $1 + 2 )) days" +%Y-%m-%d)
+first_build_dates_end=$(date -d "$start + 3 days" +%Y-%m-%d)
 in_window() {  # ERA5 file name
-    local d=$(echo $1 | sed 's/.*_\(2015-..-..\)T.*/\1/')
-    [[ "$d" < "2015-01-04" ]] || { [[ ! "$d" < "$first_date" ]] && [[ ! "$d" > "$last_date" ]]; }
+    local d=$(echo $1 | sed 's/.*_\([0-9]\{4\}-..-..\)T.*/\1/')
+    [[ "$d" < "$first_build_dates_end" ]] && [[ ! "$d" < "$start" ]] || { [[ ! "$d" < "$first_date" ]] && [[ ! "$d" > "$last_date" ]]; }
 }
 to_copy=$(mktemp -p $mirror)
-for file in $(ls $hdd_data/ERA5 | grep "HourlySingleLevel_2015-..-..T..\.nc$"); do
+for file in $(ls $hdd_data/ERA5 | grep "HourlySingleLevel_....-..-..T..\.nc$"); do
     if in_window $file; then
         [ -L $mirror/ERA5/$file ] || [ ! -e $mirror/ERA5/$file ] && echo $file >> $to_copy
     elif [ ! -L $mirror/ERA5/$file ]; then

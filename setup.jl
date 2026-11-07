@@ -184,7 +184,13 @@ The barotropic substep count is sized for `max_Δt`, so any `Δt ≤ max_Δt` is
 function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120)
     arch = architecture(grid)
 
-    land = @time "  JRA55 land" JRA55PrescribedLand(grid; dataset = MultiYearJRA55(), start_date, end_date)
+    # JRA55-do 1.5 ends in 2019; later runs take the repeat-year (1990–91) runoff from the same calendar day.
+    land = if Dates.year(end_date) ≤ 2019
+        @time "  JRA55 land" JRA55PrescribedLand(grid; dataset = MultiYearJRA55(), start_date, end_date)
+    else
+        repeat_year_start = DateTime(1990, Dates.month(start_date), Dates.day(start_date))
+        @time "  JRA55 land" JRA55PrescribedLand(grid; dataset = RepeatYearJRA55(), start_date = repeat_year_start)
+    end
 
     free_surface = NumericalEarth.Oceans.default_free_surface(grid; fixed_Δt = max_Δt)
     # The `ocean_simulation` default tracer scheme, except that near walls WENO falls back to first-order upwind

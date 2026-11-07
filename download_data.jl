@@ -13,7 +13,7 @@ for cells_per_degree in (6, 12)
     global_bottom_height(360cells_per_degree, 170cells_per_degree; halo = (7, 7, 4))
 end
 
-download(MetadataSet(:river_freshwater_flux, :iceberg_freshwater_flux; dataset = MultiYearJRA55(), start_date, end_date))
+Dates.year(end_date) ≤ 2019 && download(MetadataSet(:river_freshwater_flux, :iceberg_freshwater_flux; dataset = MultiYearJRA55(), start_date, end_date))
 
 download(MetadataSet(:temperature, :salinity, :sea_ice_thickness, :sea_ice_concentration;
                      dataset = GLORYSDaily(), date = start_date))
