@@ -32,9 +32,9 @@ simulation = global_simulation(model; name, Δt = 30, max_Δt, stop_time = stop_
 directory = joinpath(run_directory, name)
 if !isempty(initial_checkpoint) && !any(contains(r"^checkpoint.*_iteration[1-9]"), readdir(directory))
     include("regrid/set_from_checkpoint.jl")
-    checkpoint_directory, iteration = split(initial_checkpoint, ':')
+    checkpoint_directory, checkpoint_iteration = split(initial_checkpoint, ':')
     @time "interpolating $initial_checkpoint to $Nz levels" set_from_checkpoint!(model, checkpoint_directory;
-        iteration = parse(Int, iteration), rank = MPI.Comm_rank(MPI.COMM_WORLD))
+        iteration = parse(Int, checkpoint_iteration), rank = MPI.Comm_rank(MPI.COMM_WORLD))
 end
 
 run!(simulation; pickup = true)
