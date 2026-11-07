@@ -24,6 +24,9 @@ using Statistics
 
 const start_date = DateTime(get(ENV, "START_DATE", "2015-01-01"))
 const run_directory = get(ENV, "RUN_DIRECTORY", ".")
+# A run that starts from a checkpoint (INITIAL_CHECKPOINT) uses GLORYS only where the checkpoint has no ocean, so it
+# can take any cached day.
+const glorys_date = DateTime(get(ENV, "GLORYS_DATE", string(start_date)))
 
 @inline function squared_angular_distance(i, j, grid, λ₀, φ₀)
     λ = λnode(i, j, 1, grid, Center(), Center(), Center())
@@ -209,7 +212,7 @@ function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120)
     sea_ice = @time "  sea ice simulation" sea_ice_simulation(grid, ocean; advection = IncrementalRemapping(), timestepper = :ForwardEuler, dynamics)
 
     glorys = MetadataSet(:temperature, :salinity, :sea_ice_thickness, :sea_ice_concentration;
-                         dataset = GLORYSDaily(), date = start_date)
+                         dataset = GLORYSDaily(), date = glorys_date)
     @time "  GLORYS initial condition" begin
         set!(ocean.model, glorys)
         set!(sea_ice.model, glorys)
