@@ -2,7 +2,7 @@
 # MPI handles launch and scalar reductions. TripolarGrid supports y or even-x pencil partitions;
 # a y partition keeps the sea ice EVP halos (2 × substeps + 3 cells) inside each 510-row subdomain.
 #
-#   mpiexec -n 4 julia --project twelfth_degree.jl [stop_days=30] [max_Δt_minutes=30] [cfl=1.0] [Nz=100] [surface_output_hours=6]
+#   mpiexec -n 4 julia --project twelfth_degree.jl [stop_days=30] [max_Δt_minutes=30] [cfl=1.0] [Nz=100] [surface_output_hours=6] [checkpoint_days=5]
 
 using MPI
 using Profile  # a SIGUSR1 then prints where every thread is
@@ -16,6 +16,7 @@ max_Δt_minutes = parse(Int, get(ARGS, 2, "30"))
 cfl = parse(Float64, get(ARGS, 3, "1.0"))
 Nz = parse(Int, get(ARGS, 4, "100"))
 surface_output_interval = parse(Int, get(ARGS, 5, "6")) * hours
+checkpoint_interval = parse(Int, get(ARGS, 6, "5")) * days
 max_Δt = max_Δt_minutes * minutes
 
 arch = NCCLDistributed(GPU(); partition = Partition(1, 4))
@@ -27,7 +28,7 @@ initial_checkpoint = get(ENV, "INITIAL_CHECKPOINT", "")
 name = "twelfth_degree_dt$(max_Δt_minutes)min" * (cfl == 0.5 ? "" : "_cfl$cfl") * (Nz == 100 ? "" : "_Nz$Nz") *
        (isempty(initial_checkpoint) ? "" : "_from_checkpoint")
 simulation = global_simulation(model; name, Δt = 30, max_Δt, stop_time = stop_days * days, cfl,
-                               surface_output_interval)  # frames for animations
+                               surface_output_interval, checkpoint_interval)  # frames for animations
 
 directory = joinpath(run_directory, name)
 if !isempty(initial_checkpoint) && !any(contains(r"^checkpoint.*_iteration[1-9]"), readdir(directory))
