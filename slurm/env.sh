@@ -11,7 +11,7 @@ export JULIA_PKG_PRECOMPILE_AUTO=0
 # Downloaded and cached datasets (ERA5, GLORYS, JRA55, ETOPO) live on /work, not in the home quota.
 export NUMERICALEARTH_DATA_DIRECTORY=/work/hdd/bhcr/glwagner/numericalearth_data
 # Run output and 20 GB checkpoints go on the NVMe allocation; the HDD allocation holds the input data.
-export RUN_DIRECTORY=${RUN_DIRECTORY:-/work/nvme/bhcr/glwagner/GlobalKiloMischief-latest}  # apart from the runs on the older versions
+export RUN_DIRECTORY=${RUN_DIRECTORY:-/work/nvme/bhcr/glwagner/GlobalKiloMischief-v0117}  # apart from the runs on older versions
 cd "$(dirname "${BASH_SOURCE[0]}")/.."  # the checkout this file belongs to, so worktrees run their own code
 mkdir -p logs "$RUN_DIRECTORY" "$NUMERICALEARTH_DATA_DIRECTORY"
 echo "host: $(hostname)  job: ${SLURM_JOB_ID:-none}  start: $(date)"
