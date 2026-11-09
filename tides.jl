@@ -57,5 +57,6 @@ ocean.output_writers[:hourly_velocities] = JLD2Writer(ocean.model, (; ocean.mode
 ocean.output_writers[:hourly_free_surface] = JLD2Writer(ocean.model, (; η); dir = directory, filename = "ocean_hourly_free_surface",
                                                         schedule = hourly, array_type = Array{Float32})
 add_harmonic_fit!(simulation, η, directory)
+get(ENV, "TIDAL_DIAGNOSTICS", "false") == "true" && add_tidal_diagnostics!(simulation, bottom_height)
 
 run!(simulation; pickup = true)

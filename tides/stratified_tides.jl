@@ -79,12 +79,13 @@ end
 #####
 
 """
-    tidal_minimum_depth(Nz; depth = 11000, at_least = 5)
+    tidal_minimum_depth(Nz; depth = 11000, at_least = 20)
 
 The depth of the shallowest face of the `Nz`-level vertical grid that is at least `at_least` meters deep, so that the
-shallowest column holds whole surface cells.
+shallowest column holds whole surface cells. With 5 m (the single-layer calibration's minimum) the tide drains the
+shallowest columns towards zero thickness within a day of the ramp at 1/6ᵒ and the z⋆ coordinate fails.
 """
-function tidal_minimum_depth(Nz; depth = 11000, at_least = 5)
+function tidal_minimum_depth(Nz; depth = 11000, at_least = 20)
     grid = RectilinearGrid(CPU(); size = Nz, z = ExponentialDiscretization(Nz, -depth, 0; scale = 1100),
                            topology = (Flat, Flat, Bounded))
     return -maximum(z for z in znodes(grid, Face()) if z ≤ -at_least)
@@ -359,5 +360,29 @@ function add_harmonic_fit!(simulation, η, directory; start = 20days, save_inter
 
     add_callback!(simulation, accumulate, TimeInterval(1hour); name = :harmonic_fit)
     add_callback!(simulation, save, TimeInterval(save_interval); name = :save_harmonic_fit)
+    return nothing
+end
+
+"""
+    add_tidal_diagnostics!(simulation, bottom_height; interval = IterationInterval(50))
+
+Log where |v| is largest and the smallest total column thickness H + η (and where), to locate instabilities.
+"""
+function add_tidal_diagnostics!(simulation, bottom_height; interval = IterationInterval(50))
+    ocean = simulation.model.ocean.model
+    H = -bottom_height[:, :, 1]
+    function diagnose(sim)
+        v = Array(interior(ocean.velocities.v))
+        η = Array(interior(ocean.free_surface.displacement))[:, :, 1]
+        vmax, vloc = findmax(x -> isfinite(x) ? abs(x) : Inf, v)
+        thickness = ifelse.(H .> 0, H .+ η, Inf)
+        hmin, hloc = findmin(thickness)
+        i, j, k = Tuple(vloc)
+        a, b = Tuple(hloc)
+        @info @sprintf("  max|v| %.2f m/s at (%d, %d, %d), H = %.0f m, η = %.2f m; min H + η %.2f m at (%d, %d), H = %.1f m",
+                       vmax, i, j, k, H[i, j], η[i, j], hmin, a, b, H[a, b])
+        return nothing
+    end
+    add_callback!(simulation, diagnose, interval; name = :tidal_diagnostics)
     return nothing
 end
