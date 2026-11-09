@@ -40,6 +40,9 @@ struct EquilibriumTidalPotential{FT} <: Function
     g :: FT
 end
 
+# Bits already; the default `adapt` would treat it as a closure because it subtypes `Function`.
+Adapt.adapt_structure(to, Φ::EquilibriumTidalPotential) = Φ
+
 function EquilibriumTidalPotential(epoch; ramp = 2days, g = 9.80665, love_factor = 0.69)
     centuries = (Dates.datetime2julian(epoch) - 2451545.0) / 36525
     hours = Dates.hour(epoch) + Dates.minute(epoch) / 60
