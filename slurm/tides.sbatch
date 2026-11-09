@@ -11,7 +11,7 @@
 #SBATCH --time=02:00:00
 
 # One GPU by default; for 1/12ᵒ on four: sbatch --ntasks=4 --gres=gpu:4 --mem=400G slurm/tides.sbatch 12 ...
-#   sbatch slurm/tides.sbatch <cells per degree> <stop_days> <max_Δt_minutes> <cfl> <wave drag χ>
+#   sbatch slurm/tides.sbatch <cells per degree> <stop_days> <max_Δt_minutes> <cfl> <none | jsl | scale_aware> <χ> <biharmonic: yes | no>
 source slurm/env.sh
 source slurm/stage_inputs.sh $2
 # Precompile once before launching ranks, which would otherwise race on the shared depot.

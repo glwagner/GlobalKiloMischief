@@ -1,6 +1,6 @@
 # A quick CPU check of tides/stratified_tides.jl without the atmosphere or sea ice: a 4ᵒ tripolar ocean with partial
 # cells on a synthetic bathymetry, forced by the equilibrium potential with SAL, thickness-weighted Coriolis, the
-# biharmonic viscosity and wave drag, run for 3 days with the harmonic fit from day 1.
+# scale-aware wave drag (no biharmonic viscosity), run for 3 days with the harmonic fit from day 1.
 #   julia --project=. tides/cpu_check.jl
 
 using NumericalEarth
@@ -28,10 +28,12 @@ fill_halo_regions!(zb)
 grid = ImmersedBoundaryGrid(underlying_grid, PartialCellBottom(zb); active_cells_map = true)
 
 max_Δt = 30minutes
-ocean_kw = tidal_ocean_kw(grid, bottom_height; max_Δt, wave_drag_coefficient = 0.3)
+ocean_kw = tidal_ocean_kw(grid, bottom_height; max_Δt, wave_drag = :scale_aware, cells_per_degree = 6)
 ocean = ocean_simulation(grid; Δt = max_Δt, free_surface = NumericalEarth.Oceans.default_free_surface(grid; fixed_Δt = max_Δt),
                          radiative_forcing = nothing, stop_time = 3days, ocean_kw...)
 set!(ocean.model, T = 10, S = 35)
+set!(ocean.model, T = (λ, φ, z) -> 2 + 18 * exp(z / 800))  # stratified, so that N at the bottom is nonzero
+set_scale_aware_wave_drag!(ocean_kw.forcing.u.rate, ocean.model, subgrid_roughness_over_2H(grid, bottom_height, 6); Δt = max_Δt)
 update_self_attraction_and_loading_every_step!(ocean)
 η = ocean.model.free_surface.displacement
 directory = mkpath(joinpath(tempdir(), "tides_cpu_check"))

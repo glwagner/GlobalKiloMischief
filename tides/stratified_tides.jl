@@ -11,6 +11,10 @@ using Oceananigans.Architectures: on_architecture
 using Oceananigans.Operators: Δxᶜᶜᶜ, Δyᶜᶜᶜ
 using JLD2: jldsave, load
 using LinearAlgebra: inv
+using KernelAbstractions: @kernel, @index
+using Oceananigans.BuoyancyFormulations: ∂z_b
+using Oceananigans.Grids: inactive_cell
+using Oceananigans.Utils: launch!
 
 const Adapt = NumericalEarth.Oceans.Adapt
 const XDirection = NumericalEarth.Oceans.XDirection
@@ -128,7 +132,7 @@ end
 """
     WaveDrag(direction, rate)
 
-Linear drag -r u (Jayne & St. Laurent 2001), with r = χ C / H at cell centers averaged to velocity faces.
+Linear drag -r u (Jayne & St. Laurent 2001), with r at cell centers averaged to velocity faces.
 """
 struct WaveDrag{D, R}
     direction :: D
@@ -169,6 +173,66 @@ function wave_drag_rate(grid, bottom_height; χ, Δt)
     return r
 end
 
+"""
+    subgrid_roughness_over_2H(grid, bottom_height, cells_per_degree)
+
+S / 2H on the whole grid, with S the roughness of topography finer than twice the grid spacing from
+`tides/subgrid_roughness.jld2` (written by `tides/subgrid_wave_drag.jl`), on 1ᵒ tiles.
+"""
+function subgrid_roughness_over_2H(grid, bottom_height, cells_per_degree)
+    S = load(joinpath(@__DIR__, "subgrid_roughness.jld2"), cells_per_degree == 6 ? "S_sixth" : "S_twelfth")
+    cpu_grid = TripolarGrid(CPU(); size = (size(bottom_height, 1), size(bottom_height, 2), 1), z = (-1, 0))
+    S_over_2H = zeros(size(bottom_height, 1), size(bottom_height, 2))
+    for j in axes(S_over_2H, 2), i in axes(S_over_2H, 1)
+        H = -bottom_height[i, j, 1]
+        λ = λnode(i, j, 1, cpu_grid, Center(), Center(), Center())
+        φ = φnode(i, j, 1, cpu_grid, Center(), Center(), Center())
+        tile_i = clamp(floor(Int, mod(λ + 180, 360)) + 1, 1, 360)
+        tile_j = clamp(floor(Int, φ + 90) + 1, 1, 180)
+        S_over_2H[i, j] = H > 0 ? S[tile_i, tile_j] / 2H : 0.0
+    end
+    field = Field{Center, Center, Nothing}(grid)
+    set!(field, reshape(S_over_2H, size(S_over_2H)..., 1))
+    return field
+end
+
+"""
+    set_scale_aware_wave_drag!(r, ocean_model, S_over_2H; χ = 1, Δt, ω = 2π / 12.4206012hours, layers = 3)
+
+Fill the wave drag rate r = χ S N_b √(1 - f²/ω²) / 2H (Johnston, Shakespeare & Constantinou 2025, Eq. 4, restricted to
+unresolved topography), with N_b the buoyancy frequency averaged over the `layers` lowest interfaces of each column
+of the current state, zero where f > ω (no propagating waves), and r replaced by r / (1 + r Δt).
+"""
+function set_scale_aware_wave_drag!(r, ocean_model, S_over_2H; χ = 1, Δt, ω = 2π / 12.4206012hours, layers = 3)
+    grid = ocean_model.grid
+    launch!(architecture(grid), grid, :xy, _scale_aware_wave_drag!, r, grid, S_over_2H, ocean_model.buoyancy,
+            ocean_model.tracers, χ, Δt, ω, layers)
+    fill_halo_regions!(r)
+    rate = filter(>(0), Array(interior(r)))
+    isempty(rate) || @info @sprintf("Scale-aware wave drag χ = %g: median rate %.4f day⁻¹, maximum %.3f day⁻¹, %d cells", χ,
+                                    86400 * sort(rate)[end ÷ 2], 86400 * maximum(rate), length(rate))
+    return nothing
+end
+
+@kernel function _scale_aware_wave_drag!(r, grid, S_over_2H, buoyancy, tracers, χ, Δt, ω, layers)
+    i, j = @index(Global, NTuple)
+    Nz = size(grid, 3)
+    bottom = Nz + 1
+    for k in Nz:-1:1
+        bottom = ifelse(inactive_cell(i, j, k, grid), bottom, k)
+    end
+    N² = zero(grid)
+    n = 0
+    for k in bottom+1:min(bottom + layers, Nz)
+        N² += ∂z_b(i, j, k, grid, buoyancy, tracers)
+        n += 1
+    end
+    N = sqrt(max(0, N² / max(n, 1)))
+    f = 2 * 7.292115e-5 * sind(φnode(i, j, 1, grid, Center(), Center(), Center()))
+    rate = χ * @inbounds(S_over_2H[i, j, 1]) * N * sqrt(max(0, 1 - f^2 / ω^2))
+    @inbounds r[i, j, 1] = rate / (1 + rate * Δt)
+end
+
 #####
 ##### Ocean configuration
 #####
@@ -178,24 +242,33 @@ end
 @inline biharmonic_A(i, j, k, grid, ℓx, ℓy, ℓz, clock, fields, τ) = Δ²ᶜᶜᶜ(i, j, k, grid)^2 / τ
 
 """
-    tidal_ocean_kw(grid, bottom_height; max_Δt, wave_drag_coefficient = 0)
+    tidal_ocean_kw(grid, bottom_height; max_Δt, wave_drag = :none, wave_drag_coefficient = 1,
+                   cells_per_degree, biharmonic = false)
 
 `ocean_simulation` keywords for tides: the equilibrium potential of M2, S2, K1 and O1 from `start_date`, ramped over 2
-days; spherical-harmonic SAL (degree 40, PREM load Love numbers); `ThicknessWeightedEnergyConserving` Coriolis; CATKE
-with a biharmonic viscosity A = Δ⁴/τ, τ = max(1 day, 64 max_Δt) (the explicit stability bound), which Oceananigans#6451
-makes dissipative on partial cells; quadratic bottom drag 0.003; and, if `wave_drag_coefficient` χ > 0, linear wave drag.
+days; spherical-harmonic SAL (degree 40, PREM load Love numbers); `ThicknessWeightedEnergyConserving` Coriolis; CATKE,
+and if `biharmonic` a biharmonic viscosity A = Δ⁴/τ, τ = max(1 day, 64 max_Δt) (the explicit stability bound), which
+Oceananigans#6451 makes dissipative on partial cells; quadratic bottom drag 0.003; and linear wave drag with coefficient
+χ = `wave_drag_coefficient`: `wave_drag = :jsl` (Jayne & St. Laurent with the 0.5ᵒ C field) or `:scale_aware` (unresolved
+roughness only; its rate is zero until `set_scale_aware_wave_drag!` fills it from the initial stratification).
 """
-function tidal_ocean_kw(grid, bottom_height; max_Δt, wave_drag_coefficient = 0)
-    τ = max(1day, 64max_Δt)
-    @info @sprintf("Biharmonic viscosity A = Δ⁴/τ, τ = %.2f days", τ / day)
-    biharmonic = HorizontalScalarBiharmonicDiffusivity(ν = biharmonic_A, discrete_form = true, parameters = τ)
-    closure = (NumericalEarth.Oceans.default_ocean_closure(), biharmonic)
+function tidal_ocean_kw(grid, bottom_height; max_Δt, wave_drag = :none, wave_drag_coefficient = 1,
+                        cells_per_degree, biharmonic = false)
+    closure = NumericalEarth.Oceans.default_ocean_closure()
+    if biharmonic
+        τ = max(1day, 64max_Δt)
+        @info @sprintf("Biharmonic viscosity A = Δ⁴/τ, τ = %.2f days", τ / day)
+        closure = (closure, HorizontalScalarBiharmonicDiffusivity(ν = biharmonic_A, discrete_form = true, parameters = τ))
+    end
 
     love_numbers = NumericalEarth.Oceans.prem_load_love_numbers()
     self_attraction_and_loading = SphericalHarmonicSelfAttractionAndLoading(grid; truncation = 40, nlat_half = 24, love_numbers)
 
-    forcing = if wave_drag_coefficient > 0
+    forcing = if wave_drag == :jsl
         r = wave_drag_rate(grid, bottom_height; χ = wave_drag_coefficient, Δt = max_Δt)
+        (u = WaveDrag(XDirection(), r), v = WaveDrag(YDirection(), r))
+    elseif wave_drag == :scale_aware
+        r = Field{Center, Center, Nothing}(grid)
         (u = WaveDrag(XDirection(), r), v = WaveDrag(YDirection(), r))
     else
         NamedTuple()
