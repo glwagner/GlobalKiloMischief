@@ -1,0 +1,5 @@
+# Calibration base (source before submitting): MOM6 aw depth, min 5 m, JSL_RH, Δt 10 min, M2 only, flat biharmonic
+export EXTERNAL_DEPTH=mom6 MINIMUM_DEPTH=5 ISOLATED_DEPTH_RATIO=0 WAVE_DRAG_FIELD=jsl_rh WAVE_DRAG_IMPLICIT=true \
+       BOTTOM_DRAG_COEFFICIENT=0.003 GRAVITATIONAL_ACCELERATION=9.8 CORIOLIS_SCHEME=ThicknessWeightedEnergy M2_ONLY=true \
+       SELF_ATTRACTION_AND_LOADING=spherical_harmonic LOADING_LOVE_NUMBERS=prem VISCOSITY=biharmonic \
+       FIT_START_DAY=30 FIT_VELOCITIES=true PROGRESS_INTERVAL_DAYS=1

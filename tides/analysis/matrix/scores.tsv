@@ -1,0 +1,12 @@
+run	EOT_deep	EOT_deep_amp	EOT_deep_phase	EOT_offset	EOT_global	TPXO_deep	TPXO_deep_amp	TPXO_deep_phase	TPXO_offset	TPXO_global	gauge_all	gauge_200	max_amp_m
+barotropic_tides_0.36deg_dt3min_none_wavedragjsl0.8_EnergyConserving_m6	24.36	8.33	22.89	45.17	26.14	24.21	8.38	22.71	44.69	26.30	66.13	34.47	4.35
+barotropic_tides_0.36deg_dt3min_scalar_wavedragjsl0.8_EnergyConserving_m6	8.50	5.27	6.67	-5.73	14.04	8.73	5.30	6.94	-6.24	15.49	56.31	22.44	4.20
+barotropic_tides_0.36deg_dt3min_spherical_harmonic_wavedragjsl0.8_EnergyConserving_m6	6.04	3.76	4.73	-3.54	9.86	6.30	3.77	5.05	-4.04	11.54	49.42	18.63	3.91
+barotropic_tides_0.36deg_dt3min_convolution_prem_wavedragjsl0.8_EnergyConserving_m6_acc_i10	6.11	4.07	4.56	-1.19	9.85	6.29	4.05	4.81	-1.69	11.32	48.73	18.20	3.49
+barotropic_tides_0.36deg_dt10min_none_wavedragjsl1.1_bsw_nu1000	17.52	5.55	16.62	34.65	19.24	17.39	5.56	16.48	34.16	19.65	53.46	26.71	5.48
+barotropic_tides_0.36deg_dt10min_scalar_wavedragjsl1.1_bsw_nu1000	10.52	6.25	8.47	-8.64	16.43	10.69	6.25	8.68	-9.17	17.57	55.38	21.58	4.33
+barotropic_tides_0.36deg_dt10min_spherical_harmonic_wavedragjsl1.1_bsw_nu1000	8.31	5.96	5.78	-5.27	12.65	8.48	5.94	6.04	-5.79	13.98	44.74	19.30	5.53
+barotropic_tides_0.36deg_dt10min_convolution_prem_wavedragjsl1.1_bsw_nu1000_acc_i3	9.01	6.82	5.88	-4.06	12.94	9.13	6.79	6.10	-4.57	14.08	44.56	19.44	4.88
+barotropic_tides_0.36deg_dt3min_spherical_harmonic_wavedragjsl0.8_EnergyConserving_m6_papercode	8.65	5.00	7.06	-12.56	12.19	8.86	4.95	7.34	-13.06	13.49	48.79	19.69	3.54
+barotropic_tides_0.36deg_dt3min_spherical_harmonic_wavedragjsl0.8_EnergyConserving_m6_salheld10	6.02	4.02	4.48	-0.69	9.60	6.19	4.00	4.73	-1.20	11.08	48.39	18.05	3.50
+barotropic_tides_0.36deg_dt10min_spherical_harmonic_wavedragjsl1.1_bsw_nu1000_salheld3	8.84	6.77	5.68	-3.56	12.67	8.95	6.73	5.90	-4.08	13.83	43.82	19.35	5.02

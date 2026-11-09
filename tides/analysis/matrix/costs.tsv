@@ -1,0 +1,9 @@
+run	s_per_day	ms_per_step	sal_ms_per_update	sal_updates_per_day
+barotropic_tides_0.36deg_dt3min_none_wavedragjsl0.8_EnergyConserving_m6	31.211	65.02	NaN	0
+barotropic_tides_0.36deg_dt3min_scalar_wavedragjsl0.8_EnergyConserving_m6	31.378	65.37	NaN	0
+barotropic_tides_0.36deg_dt3min_spherical_harmonic_wavedragjsl0.8_EnergyConserving_m6	54.003	112.51	21.63	480
+barotropic_tides_0.36deg_dt3min_convolution_prem_wavedragjsl0.8_EnergyConserving_m6_acc_i10	190.843	397.59	3360.12	48
+barotropic_tides_0.36deg_dt10min_none_wavedragjsl1.1_bsw_nu1000	12.000	83.34	NaN	0
+barotropic_tides_0.36deg_dt10min_scalar_wavedragjsl1.1_bsw_nu1000	12.124	84.19	NaN	0
+barotropic_tides_0.36deg_dt10min_spherical_harmonic_wavedragjsl1.1_bsw_nu1000	18.596	129.14	20.93	144
+barotropic_tides_0.36deg_dt10min_convolution_prem_wavedragjsl1.1_bsw_nu1000_acc_i3	165.212	1147.30	3225.78	48
