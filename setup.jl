@@ -20,8 +20,6 @@ using CDSAPI           # loads the ERA5 download extension
 using CopernicusMarine  # loads the GLORYS download extension
 using Dates: Dates, Date, DateTime, Day, Millisecond
 using Printf
-using SPICE: SPICE
-using Tidejinks: Tidejinks
 using Statistics
 
 const start_date = DateTime(get(ENV, "START_DATE", "2015-01-01"))
@@ -131,16 +129,17 @@ function fill_dead_ends!(bottom_height)
 end
 
 """
-    global_bottom_height(Nx, Ny; halo, gibraltar_sill_depth = 280, minimum_depth = 10)
+    global_bottom_height(Nx, Ny; halo, gibraltar_sill_depth = 280, minimum_depth = 10, regrid_depth = 6000)
 
 ETOPO2022 bottom height on the whole `Nx × Ny` tripolar grid, computed on the CPU, keeping only the world ocean.
+The bathymetry is regridded onto a grid `regrid_depth` deep, so deeper cells are clipped to `regrid_depth`.
 Before minor basins are removed, the Mediterranean is connected to the Atlantic through the Strait of Gibraltar if
 the regridded bathymetry has closed it (at 1/6ᵒ a single land cell does), carving a channel `gibraltar_sill_depth`
 deep (the Camarinal Sill). Every rank of a distributed run builds the same field, so the regridding must already be
 cached (`download_data.jl` does this).
 """
-function global_bottom_height(Nx, Ny; halo, gibraltar_sill_depth = 280, minimum_depth = 10)
-    grid = TripolarGrid(CPU(); size = (Nx, Ny, 1), halo, z = (-6000, 0))
+function global_bottom_height(Nx, Ny; halo, gibraltar_sill_depth = 280, minimum_depth = 10, regrid_depth = 6000)
+    grid = TripolarGrid(CPU(); size = (Nx, Ny, 1), halo, z = (-regrid_depth, 0))
     bottom_height = regrid_bathymetry(grid; minimum_depth, interpolation_passes = 3, major_basins = Inf)
 
     gulf_of_cadiz = (-6.8, 35.9)
@@ -161,37 +160,39 @@ end
 
 Tripolar grid from 80°S to the north pole at `1/cells_per_degree` degree resolution, or with `Nx × Ny` horizontal
 cells, with `Nz` z⋆ levels (1.4 m at the surface, 320 m at 6000 m depth) and ETOPO2022 bathymetry
-(see [`global_bottom_height`](@ref)).
+(see [`global_bottom_height`](@ref)), or `bottom_height` (an array on the whole grid) if given.
+`immersed_boundary` is `GridFittedBottom` or `PartialCellBottom`.
 """
 function global_grid(arch; cells_per_degree = nothing, Nx = 360 * cells_per_degree, Ny = 170 * cells_per_degree,
-                     Nz = 100, depth = 6000, halo = (7, 7, 5), minimum_depth = 10)
+                     Nz = 100, depth = 6000, halo = (7, 7, 5), minimum_depth = 10, bottom_height = nothing,
+                     immersed_boundary = GridFittedBottom)
     z = ExponentialDiscretization(Nz, -depth, 0; scale = 1100, mutable = true)
     underlying_grid = TripolarGrid(arch; size = (Nx, Ny, Nz), halo, z)
 
     # `set!` partitions a global host array across the ranks of a distributed grid.
-    bottom_height = Field{Center, Center, Nothing}(underlying_grid)
     # Oceananigans 0.116 needs a vertical halo of 5 on an immersed grid (0.113 took 4). The bathymetry keeps its own
     # halo of (7, 7, 4), with which its regridding is cached, since only its interior is used here.
-    set!(bottom_height, Array(interior(global_bottom_height(Nx, Ny; halo = (7, 7, 4), minimum_depth))))
-    fill_halo_regions!(bottom_height)
+    if isnothing(bottom_height)
+        bottom_height = Array(interior(global_bottom_height(Nx, Ny; halo = (7, 7, 4), minimum_depth)))
+    end
+    zb = Field{Center, Center, Nothing}(underlying_grid)
+    set!(zb, bottom_height)
+    fill_halo_regions!(zb)
 
-    return ImmersedBoundaryGrid(underlying_grid, GridFittedBottom(bottom_height); active_cells_map = true)
+    return ImmersedBoundaryGrid(underlying_grid, immersed_boundary(zb); active_cells_map = true)
 end
 
 """
-    ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120, tides = false,
-                        self_attraction_and_loading = nothing, biharmonic_timescale = nothing)
+    ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120, ocean_kw = (;))
 
 ERA5-forced ocean--sea ice model initialized from GLORYS at `start_date` and from rest.
-With `tides = true` the astronomical tidal potential (Tidejinks, in the `IAU_EARTH` frame as in MITgcm) forces the
-momentum, with `self_attraction_and_loading` (see NumericalEarth's `ocean_simulation`) and, if `biharmonic_timescale`
-is given, a biharmonic viscosity ν = Az² / τ that removes the internal-tide energy cascading to the grid scale.
+`ocean_kw` are passed to NumericalEarth's `ocean_simulation` (tides use them for the tidal potential, self-attraction
+and loading, Coriolis, closure and forcing).
 The ocean uses the `ocean_simulation` defaults: `WENOVectorInvariant` momentum advection, `WENO(order=7)`
 tracer advection (both vertically implicit where the vertical CFL exceeds 0.5) and CATKE vertical mixing only.
 The barotropic substep count is sized for `max_Δt`, so any `Δt ≤ max_Δt` is stable.
 """
-function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120, tides = false,
-                             self_attraction_and_loading = nothing, biharmonic_timescale = nothing)
+function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120, ocean_kw = (;))
     arch = architecture(grid)
 
     # JRA55-do 1.5 ends in 2019; later runs take the repeat-year (1990–91) runoff from the same calendar day.
@@ -208,11 +209,8 @@ function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120, ti
     # has no damping: overflow cells in the Faroe Bank Channel cooled at 1.7 ᵒC/day to -12.7 ᵒC in 10 days.
     tracer_advection = WENO(order = 7, minimum_buffer_upwind_order = 1,
                             time_discretization = AdaptiveVerticallyImplicitDiscretization(cfl = 0.5))
-    tidal_forcing = tides ? (; barotropic_potential = tidal_potential(grid, (start_date, end_date))) : (;)
-    closure = isnothing(biharmonic_timescale) ? NumericalEarth.Oceans.default_ocean_closure() :
-              (NumericalEarth.Oceans.default_ocean_closure(), biharmonic_viscosity(grid, biharmonic_timescale))
-    ocean = @time "  ocean simulation" ocean_simulation(grid; free_surface, tracer_advection, closure, self_attraction_and_loading,
-                                                         river_routing = land.river_routing, tidal_forcing...)
+    ocean = @time "  ocean simulation" ocean_simulation(grid; free_surface, tracer_advection, river_routing = land.river_routing,
+                                                         ocean_kw...)
 
     # mEVP converges only if the substep count is at least the relaxation parameter.
     rheology = ElastoViscoPlasticRheology(max_relaxation_parameter = sea_ice_substeps)
@@ -242,26 +240,6 @@ function ocean_sea_ice_model(grid; max_Δt, end_date, sea_ice_substeps = 120, ti
 
     # NumericalEarth main has no `frazil_formation_depth` (NumericalEarth#770), so frazil forms at any depth.
     return @time "  coupled model" OceanSeaIceModel(ocean, sea_ice; atmosphere, land, radiation)
-end
-
-# SPICE reads the kernels that Tidejinks downloads through a meta-kernel of relative paths, so both happen in one
-# directory. The ranks of a distributed run would copy the kernels concurrently: run a single-process job first.
-function tidal_potential(grid, dates)
-    directory = mkpath(joinpath(ENV["NUMERICALEARTH_DATA_DIRECTORY"], "SPICE"))
-    cd(directory) do
-        isfile("kernels.txt") || Tidejinks.wrangle_spice_kernels("kernels.txt", "kernels")
-        SPICE.furnsh("kernels.txt")
-    end
-    return Tidejinks.TidalPotential(grid, dates; reference_frame = "IAU_EARTH")
-end
-
-# ν = Az² / τ damps waves two cells long in about τ / π⁴ ≈ τ / 100 (7 hours for τ = 30 days).
-@inline biharmonic_ν(i, j, k, grid, τ) = Oceananigans.Operators.Azᶜᶜᶜ(i, j, k, grid)^2 / τ
-
-function biharmonic_viscosity(grid, τ)
-    ν = Field{Center, Center, Center}(grid)
-    set!(ν, KernelFunctionOperation{Center, Center, Center}(biharmonic_ν, grid, τ))
-    return HorizontalScalarBiharmonicDiffusivity(; ν)
 end
 
 # Vertical advection is implicit where it would limit Δt, so only horizontal advection sets the time step.

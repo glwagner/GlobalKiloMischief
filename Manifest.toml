@@ -2,7 +2,7 @@
 
 julia_version = "1.12.7"
 manifest_format = "2.0"
-project_hash = "21e46477e3520f591223752c059ef478cf49234f"
+project_hash = "a971a4f5cbd5849cbe101e4d02ca02f8b35cf919"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1430,7 +1430,7 @@ version = "0.9.2"
 
 [[deps.Oceananigans]]
 deps = ["Adapt", "BFloat16s", "Crayons", "CubedSphere", "Dates", "Distances", "DocStringExtensions", "FFTW", "GPUArraysCore", "Glob", "InteractiveUtils", "JLD2", "KernelAbstractions", "Krylov", "LinearAlgebra", "Logging", "MPI", "MuladdMacro", "OffsetArrays", "OrderedCollections", "Printf", "ReactantCore", "Rotations", "SeawaterPolynomials", "SparseArrays", "StaticArrays", "Statistics", "StructArrays"]
-git-tree-sha1 = "10751f2a96272e0caa66b342c2990b9885f4a21b"
+path = "/u/glwagner/Oceananigans-tides"
 uuid = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 version = "0.117.2"
 
