@@ -283,13 +283,15 @@ end
 # Linear topographic wave drag -χ C / H u (Jayne & St. Laurent 2001) with WAVE_DRAG_COEFFICIENT = χ > 0, where
 # C = κ h² N_b √(1 - f²/ω²) / 2 on 0.5ᵒ tiles comes from egbert_ray/solve/scripts/prep_wavedrag.py (zero where the
 # tile is shallower than 100 m), interpolated to cell centres. The rate χ C / H is capped at 1 / 2Δt for stability.
-struct WaveDrag{D, R}
+struct WaveDrag{D, R, T}
     direction :: D
     rate :: R
+    Δt :: T # > 0: rate is χ C / H, and the semi-implicit factor is applied on faces (WAVE_DRAG_FACE_FACTOR = true)
 end
 Adapt.@adapt_structure WaveDrag
-@inline (d::WaveDrag{<:NumericalEarth.Oceans.XDirection})(i, j, k, grid, clock, fields) = @inbounds - (d.rate[i-1, j, 1] + d.rate[i, j, 1]) / 2 * fields.u[i, j, k]
-@inline (d::WaveDrag{<:NumericalEarth.Oceans.YDirection})(i, j, k, grid, clock, fields) = @inbounds - (d.rate[i, j-1, 1] + d.rate[i, j, 1]) / 2 * fields.v[i, j, k]
+@inline face_rate(r, Δt) = ifelse(Δt > 0, r / (1 + r * Δt), r)
+@inline (d::WaveDrag{<:NumericalEarth.Oceans.XDirection})(i, j, k, grid, clock, fields) = @inbounds - face_rate((d.rate[i-1, j, 1] + d.rate[i, j, 1]) / 2, d.Δt) * fields.u[i, j, k]
+@inline (d::WaveDrag{<:NumericalEarth.Oceans.YDirection})(i, j, k, grid, clock, fields) = @inbounds - face_rate((d.rate[i, j-1, 1] + d.rate[i, j, 1]) / 2, d.Δt) * fields.v[i, j, k]
 
 #
 # WAVE_DRAG_FIELD = jsl_rh: C is MOM6's JSL_RH (Chen et al., JSLH_p04arc9_aw.nc, regridded; needs EXTERNAL_DEPTH = mom6 for
@@ -299,6 +301,8 @@ Adapt.@adapt_structure WaveDrag
 χ = parse(Float64, get(ENV, "WAVE_DRAG_COEFFICIENT", "0"))
 wave_drag_field = get(ENV, "WAVE_DRAG_FIELD", "egbert_ray")
 wave_drag_implicit = get(ENV, "WAVE_DRAG_IMPLICIT", "false") == "true"
+# WAVE_DRAG_FACE_FACTOR = true (with WAVE_DRAG_IMPLICIT): average χ C / H to faces first, then apply r / (1 + r Δt) there
+face_factor = wave_drag_implicit && get(ENV, "WAVE_DRAG_FACE_FACTOR", "false") == "true"
 forcing = if χ > 0
     C = reshape(reinterpret(Float64, read("wavedrag_halfdeg_C.bin")), 720, 312) # 0.5ᵒ tiles, lat from -77.75 to 77.75
     function tile_value(λ, φ)
@@ -315,7 +319,7 @@ forcing = if χ > 0
         φ = Oceananigans.Grids.φnode(i, j, 1, cpu_grid, Center(), Center(), Center())
         c = isnothing(rh) ? tile_value(λ, φ) : rh[i, j]
         raw_rate[i, j] = H > 0 ? χ * c / H : 0.0
-        rate[i, j] = wave_drag_implicit ? raw_rate[i, j] / (1 + raw_rate[i, j] * Δt) : min(raw_rate[i, j], 1 / 2Δt)
+        rate[i, j] = face_factor ? raw_rate[i, j] : wave_drag_implicit ? raw_rate[i, j] / (1 + raw_rate[i, j] * Δt) : min(raw_rate[i, j], 1 / 2Δt)
     end
     @info @sprintf("Wave drag %s χ = %g: max r = %.3e s⁻¹ (1/r = %.2f h), max r Δt = %.3g, %d cells with r Δt > 0.5, implicit = %s",
                    wave_drag_field, χ, maximum(raw_rate), 1 / maximum(raw_rate) / 3600, maximum(raw_rate) * Δt,
@@ -326,7 +330,7 @@ forcing = if χ > 0
     @info @sprintf("Wave drag χ = %g: rate χ C / H median %.3f day⁻¹ over cells deeper than 1000 m, capped in %d cells", χ,
                    86400 * sort(rate[-interior(bottom_height, :, :, 1) .> 1000])[end ÷ 2],
                    count(rate .== 1 / 2Δt))
-    (u = WaveDrag(NumericalEarth.Oceans.XDirection(), r), v = WaveDrag(NumericalEarth.Oceans.YDirection(), r))
+    (u = WaveDrag(NumericalEarth.Oceans.XDirection(), r, face_factor ? Δt : 0.0), v = WaveDrag(NumericalEarth.Oceans.YDirection(), r, face_factor ? Δt : 0.0))
 else
     NamedTuple()
 end
@@ -503,7 +507,8 @@ function save_fit(sim)
     @info @sprintf("Saved %s_harmonics.jld2: fit of %d hourly samples, days %.2f–%.2f", name, length(t), t[1] / 86400, t[end] / 86400)
 end
 if fit_start > 0
-    add_callback!(ocean, accumulate_fit, TimeInterval(1hours))
+    # FIT_SAMPLE = step: sample every time step instead of hourly
+    add_callback!(ocean, accumulate_fit, get(ENV, "FIT_SAMPLE", "hourly") == "step" ? IterationInterval(1) : TimeInterval(1hours))
     add_callback!(ocean, sim -> (η_snapshots[@sprintf("day%03d", round(Int, time(sim) / 86400))] = Array(interior(η, :, :, 1))),
                   TimeInterval(5days))
 else
