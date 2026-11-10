@@ -229,14 +229,13 @@ end
 # kernel; FREE_SURFACE_CFL (default 0.7) sets the substep count. Defaults reproduce NumericalEarth's default_free_surface.
 fs_kernel = get(ENV, "FREE_SURFACE_KERNEL", "shape")
 fs_cfl = parse(Float64, get(ENV, "FREE_SURFACE_CFL", "0.7"))
-free_surface = if fs_kernel == "shape" && fs_cfl == 0.7
-    NumericalEarth.Oceans.default_free_surface(grid; fixed_Δt = Δt)
-else
-    SE = Oceananigans.Models.HydrostaticFreeSurfaceModels.SplitExplicitFreeSurfaces
-    kernel = fs_kernel == "cosine" ? SE.cosine_averaging_kernel : fs_kernel == "constant" ? SE.constant_averaging_kernel : SE.averaging_shape_function
-    SplitExplicitFreeSurface(grid; cfl = fs_cfl, fixed_Δt = Δt, averaging_kernel = kernel)
-end
-@info "Free surface: $(summary(free_surface)), kernel $fs_kernel, cfl $fs_cfl"
+# The free surface uses the same g as the forcing. (Until 2026-11, default_free_surface was used here, which ignores g and
+# kept 9.80665 in the free surface. The calibrated 6.15 cm run had that mixed g; FREE_SURFACE_GRAVITY = default restores it.)
+SE = Oceananigans.Models.HydrostaticFreeSurfaceModels.SplitExplicitFreeSurfaces
+kernel = fs_kernel == "cosine" ? SE.cosine_averaging_kernel : fs_kernel == "constant" ? SE.constant_averaging_kernel : SE.averaging_shape_function
+fs_g = get(ENV, "FREE_SURFACE_GRAVITY", "consistent") == "default" ? 9.80665 : g
+free_surface = SplitExplicitFreeSurface(grid; cfl = fs_cfl, fixed_Δt = Δt, averaging_kernel = kernel, gravitational_acceleration = fs_g)
+@info "Free surface: $(summary(free_surface)), kernel $fs_kernel, cfl $fs_cfl, g $fs_g"
 
 loading = get(ENV, "SELF_ATTRACTION_AND_LOADING", "none")
 loading_suffix = loading
@@ -411,6 +410,14 @@ ocean = ocean_simulation(grid; momentum_advection..., Δt, implicit_bottom_drag 
                          self_attraction_and_loading, equation_of_state = LinearEquationOfState(),
                          radiative_forcing = nothing, gravitational_acceleration = g, stop_time = stop_days * days)
 set!(ocean.model, T = 10, S = 35)
+# DUMP_FIELDS = path (diagnostics): dump the initial fields and three tendencies (analysis/diag/dump_fields.jl) and exit
+if haskey(ENV, "DUMP_FIELDS")
+    include(joinpath(@__DIR__, "analysis", "diag", "dump_fields.jl"))
+    dump_fields(ENV["DUMP_FIELDS"], ocean.model,
+                m -> isnothing(self_attraction_and_loading) || NumericalEarth.Oceans.compute_self_attraction_and_loading!(m, self_attraction_and_loading);
+                bottom = Array(interior(zb, :, :, 1)), A = isnothing(νₐ) ? nothing : Array(interior(νₐ, :, :, 1)))
+    exit()
+end
 isnothing(smagorinsky_update!) || add_callback!(ocean, smagorinsky_update!, IterationInterval(1))
 # SEED_VELOCITY = a (m/s, diagnostics): start from u, v = a × white noise on wet faces (seeded RNG).
 # ENERGY_DIAGNOSTIC = true: log E = ½ Σ (Vᵘ u² + Vᵛ v²) + ½ g Σ A_z η² (per unit density) at every progress interval.
