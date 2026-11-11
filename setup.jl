@@ -13,7 +13,7 @@ using Oceananigans.Grids: λnode, φnode
 using Oceananigans.TimeSteppers: AdaptiveVerticallyImplicitDiscretization
 using ClimaSeaIce: IncrementalRemapping
 using ClimaSeaIce.Rheologies: ElastoViscoPlasticRheology
-using ClimaSeaIce.SeaIceDynamics: SplitExplicitSolver
+using ClimaSeaIce.SeaIceDynamics: SeaIceDynamics, SplitExplicitSolver
 using CUDA
 using MPI: MPI
 using CDSAPI           # loads the ERA5 download extension
@@ -21,6 +21,16 @@ using CopernicusMarine  # loads the GLORYS download extension
 using Dates: Dates, Date, DateTime, Day, Millisecond
 using Printf
 using Statistics
+
+# ClimaSeaIce 0.7.2 copies the ocean surface velocity onto the sea ice's extended grid without the source's indices,
+# so the copy holds every level: 2 × 3.5 GiB per GPU at 1/12ᵒ with 100 levels, enough to run out of memory.
+# TODO: remove once ClimaSeaIce passes `indices = src.indices` itself.
+function SeaIceDynamics.extended_external_variable(src::Field, grid)
+    SeaIceDynamics.grids_match(src, grid) && return src
+    field = Field{Oceananigans.location(src)...}(grid; indices = src.indices, boundary_conditions = src.boundary_conditions)
+    interior(field) .= interior(src)
+    return field
+end
 
 const start_date = DateTime(get(ENV, "START_DATE", "2015-01-01"))
 const run_directory = get(ENV, "RUN_DIRECTORY", ".")
