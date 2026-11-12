@@ -15,7 +15,8 @@ stop_days = parse(Int, get(ARGS, 1, "30"))
 max_Δt_minutes = parse(Int, get(ARGS, 2, "30"))
 cfl = parse(Float64, get(ARGS, 3, "1.0"))
 Nz = parse(Int, get(ARGS, 4, "100"))
-surface_output_interval = parse(Int, get(ARGS, 5, "6")) * hours
+# SURFACE_OUTPUT_HOURS (set in slurm/env.sh) overrides the argument, so that queued jobs take a changed interval at launch.
+surface_output_interval = parse(Int, get(ENV, "SURFACE_OUTPUT_HOURS", get(ARGS, 5, "6"))) * hours
 checkpoint_interval = parse(Int, get(ARGS, 6, "5")) * days
 max_Δt = max_Δt_minutes * minutes
 

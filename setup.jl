@@ -20,6 +20,7 @@ using CDSAPI           # loads the ERA5 download extension
 using CopernicusMarine  # loads the GLORYS download extension
 using Dates: Dates, Date, DateTime, Day, Millisecond
 using Printf
+using BFloat16s: BFloat16
 using Statistics
 
 # ClimaSeaIce 0.7.2 copies the ocean surface velocity onto the sea ice's extended grid without the source's indices,
@@ -255,6 +256,9 @@ horizontal_advection_timescale(model) =
 Coupled simulation with an adaptive time step, a progress message every 50 iterations, surface output (daily by default),
 and a checkpoint every 5 days so that a later run with a longer `stop_time` picks up where this one ended.
 """
+# Output (not checkpoints) in BFloat16, about 3 significant digits: errors up to ~0.06 ᵒC in SST and ~8 mm in η at |η| ~ 2 m.
+const output_array_type = Array{BFloat16}
+
 function global_simulation(model; name, Δt, max_Δt, stop_time, cfl = 0.5, checkpoint_interval = 5days,
                            surface_output_interval = 1day)
     directory = mkpath(joinpath(run_directory, name))
@@ -282,18 +286,18 @@ function global_simulation(model; name, Δt, max_Δt, stop_time, cfl = 0.5, chec
     surface_outputs = merge(ocean.model.tracers, ocean.model.velocities)
     ocean.output_writers[:surface] = JLD2Writer(ocean.model, surface_outputs; dir = directory,
                                                 filename = "ocean_surface", indices = (:, :, Nz),
-                                                schedule = TimeInterval(surface_output_interval), array_type = Array{Float32},
+                                                schedule = TimeInterval(surface_output_interval), array_type = output_array_type,
                                                 including = [:grid])
 
     ocean.output_writers[:free_surface] = JLD2Writer(ocean.model, (; η = ocean.model.free_surface.displacement);
                                                      dir = directory, filename = "ocean_free_surface",
-                                                     schedule = TimeInterval(1day), array_type = Array{Float32})
+                                                     schedule = TimeInterval(1day), array_type = output_array_type)
 
     sea_ice_outputs = merge((; h = sea_ice.model.ice_thickness, ℵ = sea_ice.model.ice_concentration),
                             sea_ice.model.velocities)
     sea_ice.output_writers[:surface] = JLD2Writer(sea_ice.model, sea_ice_outputs; dir = directory,
                                                   filename = "sea_ice", schedule = TimeInterval(surface_output_interval),
-                                                  array_type = Array{Float32})
+                                                  array_type = output_array_type)
 
     simulation.output_writers[:checkpointer] = Checkpointer(model; dir = directory, cleanup = true,
                                                             schedule = TimeInterval(checkpoint_interval))
