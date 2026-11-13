@@ -99,12 +99,18 @@ function globe_figure(Nx, Ny, stride, so, si, title)
     fig = Figure(size = (1200, 900))
     views = ((elevation = deg2rad(40), azimuth = deg2rad(-15)), (elevation = deg2rad(-90), azimuth = deg2rad(165)))
     plots = map(enumerate(views)) do (n, view)
-        ax = Axis3(fig[1, n]; view..., aspect = :equal)
-        ocean = surface!(ax, xo, yo, zo; color = so, colorrange = ocean_speed_range, colormap = :magma,
+        # Limits fixed to the whole sphere: with the far hemisphere dropped they would otherwise shrink unevenly
+        ax = Axis3(fig[1, n]; view..., aspect = :equal, limits = (-1.01, 1.01, -1.01, 1.01, -1.01, 1.01))
+        # CairoMakie paints each plot whole, in order, with no depth buffer between plots, so the far hemisphere of
+        # the ice and the cap would be painted over the near hemisphere of the ocean: drop the far hemisphere.
+        eye = (cos(view.elevation) * cos(view.azimuth), cos(view.elevation) * sin(view.azimuth), sin(view.elevation))
+        front(x, y, z) = (far = @. x * eye[1] + y * eye[2] + z * eye[3] < 0; map(a -> ifelse.(far, NaN, a), (x, y, z)))
+        ocean = surface!(ax, front(xo, yo, zo)...; color = so, colorrange = ocean_speed_range, colormap = :magma,
                          nan_color = :gray90, shading = NoShading)
-        ice = surface!(ax, xi, yi, zi; color = si, colorrange = ice_speed_range, colormap = :buda10,
+        ice = surface!(ax, front(xi, yi, zi)...; color = si, colorrange = ice_speed_range, colormap = :buda10,
                        nan_color = :transparent, shading = NoShading)
-        surface!(ax, xc, yc, zc; color = zeros(size(xc)), colorrange = (0, 1), colormap = [:gray55, :gray55], shading = NoShading)
+        surface!(ax, front(xc, yc, zc)...; color = zeros(size(xc)), colorrange = (0, 1), colormap = [:gray55, :gray55],
+                 shading = NoShading)
         hidedecorations!(ax)
         hidespines!(ax)
         (; ocean, ice)
