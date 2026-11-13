@@ -292,18 +292,18 @@ function global_simulation(model; name, Δt, max_Δt, stop_time, cfl = 0.5, chec
     surface_outputs = NamedTuple{surface_fields}(merge(ocean.model.tracers, ocean.model.velocities))
     ocean.output_writers[:surface] = JLD2Writer(ocean.model, surface_outputs; dir = directory,
                                                 filename = "ocean_surface", indices = (:, :, Nz),
-                                                schedule = TimeInterval(surface_output_interval), array_type = Array{Float32},
+                                                schedule = TimeInterval(surface_output_interval), array_type = Array{Float32}, file_splitting = TimeInterval(30days),
                                                 including = [:grid])
 
     ocean.output_writers[:free_surface] = JLD2Writer(ocean.model, (; η = ocean.model.free_surface.displacement);
                                                      dir = directory, filename = "ocean_free_surface",
-                                                     schedule = TimeInterval(surface_output_interval), array_type = Array{Float32})
+                                                     schedule = TimeInterval(surface_output_interval), array_type = Array{Float32}, file_splitting = TimeInterval(30days))
 
     sea_ice_outputs = merge((; h = sea_ice.model.ice_thickness, ℵ = sea_ice.model.ice_concentration),
                             sea_ice.model.velocities)
     sea_ice.output_writers[:surface] = JLD2Writer(sea_ice.model, sea_ice_outputs; dir = directory,
                                                   filename = "sea_ice", schedule = TimeInterval(sea_ice_output_interval),
-                                                  array_type = Array{Float32})
+                                                  array_type = Array{Float32}, file_splitting = TimeInterval(30days))
 
     simulation.output_writers[:checkpointer] = Checkpointer(model; dir = directory, cleanup = true,
                                                             schedule = TimeInterval(checkpoint_interval))

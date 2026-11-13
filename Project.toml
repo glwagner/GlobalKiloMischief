@@ -1,4 +1,5 @@
 [deps]
+BFloat16s = "ab4f0b2a-ad5b-11e8-123f-65d77653426b"
 CDSAPI = "8a7b9de3-9c00-473e-88b4-7eccd7ef2fea"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 ClimaSeaIce = "6ba0ff68-24e6-4315-936c-2e99227c95a4"

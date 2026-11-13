@@ -12,6 +12,7 @@ using Oceananigans.DistributedComputations: NCCLDistributed
 
 @time "loading packages and setup.jl" include("setup.jl")
 include("tides/stratified_tides.jl")
+using BFloat16s: BFloat16
 
 cells_per_degree = parse(Int, ARGS[1])
 stop_days = parse(Int, ARGS[2])
@@ -53,9 +54,16 @@ ocean = model.ocean
 hourly = SpecifiedTimes(collect(20days:1hour:50days))
 ocean.output_writers[:hourly_velocities] = JLD2Writer(ocean.model, (; ocean.model.velocities.u, ocean.model.velocities.v);
                                                       dir = directory, filename = "ocean_hourly_velocities", indices = (:, :, Nz),
-                                                      schedule = hourly, array_type = Array{Float32})
+                                                      schedule = hourly, array_type = Array{Float32}, file_splitting = TimeInterval(30days))
 ocean.output_writers[:hourly_free_surface] = JLD2Writer(ocean.model, (; η); dir = directory, filename = "ocean_hourly_free_surface",
-                                                        schedule = hourly, array_type = Array{Float32})
+                                                        schedule = hourly, array_type = Array{Float32}, file_splitting = TimeInterval(30days))
+# Sea surface height (Float32: BFloat16 would round η by up to ~8 mm) and surface velocity (BFloat16) every 3 hours
+# (resolves M4) for the whole run
+ocean.output_writers[:three_hourly_velocities] = JLD2Writer(ocean.model, (; ocean.model.velocities.u, ocean.model.velocities.v);
+                                                           dir = directory, filename = "ocean_3hourly_velocities", indices = (:, :, Nz),
+                                                           schedule = TimeInterval(3hours), array_type = Array{BFloat16}, file_splitting = TimeInterval(30days))
+ocean.output_writers[:three_hourly_free_surface] = JLD2Writer(ocean.model, (; η); dir = directory, filename = "ocean_3hourly_free_surface",
+                                                             schedule = TimeInterval(3hours), array_type = Array{Float32}, file_splitting = TimeInterval(30days))
 add_harmonic_fit!(simulation, η, directory)
 get(ENV, "TIDAL_DIAGNOSTICS", "false") == "true" && add_tidal_diagnostics!(simulation, bottom_height)
 
