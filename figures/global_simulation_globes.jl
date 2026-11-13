@@ -31,13 +31,17 @@ function snapshots(directory, prefix)
     end
 end
 
-# Stack the interiors of the ranks' bands of rows. Each array has a halo of `(size % 360) / 2` cells in x and
-# `(size % 170) / 2` in y (the grid is 360c × 170c), and faces keep one more column or row than centers.
+# Stack the interiors of the ranks' bands of rows. Each array has a halo of `(size % 360) / 2` cells in x (the grid is
+# 360c × 170c); the y halo can be wider than 170 rows (the sea ice carries 2 × substeps + 3), so the band height is
+# taken from the global Ny = 170c instead. Faces keep one more column or row than centers.
 function stitch(directory, prefix, name, iteration; face_x = false, face_y = false)
-    bands = map(rank_files(directory, prefix)) do path
+    paths = rank_files(directory, prefix)
+    bands = map(paths) do path
         a = jldopen(f -> f["timeseries/$name/$iteration"][:, :, 1], path)
-        Hx, Hy = (size(a, 1) % 360) ÷ 2, (size(a, 2) % 170) ÷ 2
-        Nx, Ny = size(a, 1) - 2Hx, size(a, 2) - 2Hy
+        Hx = (size(a, 1) % 360) ÷ 2
+        Nx = size(a, 1) - 2Hx
+        Ny = 170 * (Nx ÷ 360) ÷ length(paths)
+        Hy = (size(a, 2) - Ny) ÷ 2
         a[Hx .+ (1:Nx+face_x), Hy .+ (1:Ny+face_y)]
     end
     face_y || return reduce(hcat, bands)
@@ -72,7 +76,7 @@ function closed(a, stride)
     return vcat(b, b[1:1, :])
 end
 
-cartesian(λ, φ, r) = (@. r * cosd(φ) * cosd(λ), @. r * cosd(φ) * sind(λ), @. r * sind(φ))
+cartesian(λ, φ, r) = ((@. r * cosd(φ) * cosd(λ)), (@. r * cosd(φ) * sind(λ)), (@. r * sind(φ)))
 
 timestamp(time) = @sprintf("%s UTC, day %.2f", Dates.format(start_date + Millisecond(round(Int, 1000time)), "yyyy-mm-dd HH:MM"), time / 86400)
 
